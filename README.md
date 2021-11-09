@@ -7,7 +7,7 @@ Goal: Implement distributed sorting key/value records stored on multiple machine
 
 Team color: Blue  
 1. Soomin Choi (20160169)
-2. Soobin Park (20180953)
+2. Subin Park (20180953)
 
 
 ## Plan
