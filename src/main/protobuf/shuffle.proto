@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package message;
+
+message FileRequest {
+  bytes data = 2;
+}
+
+enum FileStatus {
+  PENDING = 0;
+  IN_PROGRESS = 1;
+  SUCCESS = 2;
+  FAILED = 3;
+}
+
+message FileResponse {
+  FileStatus status = 1;
+  string message = 2;
+}
+
+service Shuffle {
+  rpc DataRoute(stream FileRequest) returns (FileResponse) {}
+}
