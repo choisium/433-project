@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package message;
+
+message ConnectRequest {
+  string ip = 1;
+  int32 port = 2;
+}
+
+message ConnectResponse {
+  int32 id = 1;
+  bool success = 2;
+}
+
+// message PivotRequest { }
+
+// message PivotResponse { }
+
+service Connection {
+  rpc Connect(ConnectRequest) returns (ConnectResponse) {}
+  // rpc Pivot(PivotRequest) returns (PivotResponse) {}
+}
