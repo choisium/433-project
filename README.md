@@ -12,6 +12,9 @@ Team color: Blue
 
 ## Plan
 
+Check revised plan with milestones [here](https://www.notion.so/choisium/Milestone-fc4067d43e9749d2ab01968cddea3cfa)
+
+
 <table>
   <col>
   <colgroup span="2"></colgroup>
