@@ -2,21 +2,18 @@ syntax = "proto3";
 
 package message;
 
+// Worker request to connect to master
 message ConnectRequest {
-  string ip = 1;
-  int32 port = 2;
+  string ip = 1;     // worker file server's ip
+  int32 port = 2;    // worker file server's port
 }
 
+// Master respond to ConnectRequest if connection is success or not
 message ConnectResponse {
-  int32 id = 1;
-  bool success = 2;
+  bool success = 1;  // true: connection success
+  int32 id = 2;      // positive if success is true
 }
-
-// message PivotRequest { }
-
-// message PivotResponse { }
 
 service Connection {
   rpc Connect(ConnectRequest) returns (ConnectResponse) {}
-  // rpc Pivot(PivotRequest) returns (PivotResponse) {}
 }

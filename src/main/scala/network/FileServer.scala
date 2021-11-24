@@ -1,4 +1,10 @@
-package worker
+/*
+  Respond to network request for file shuffle.
+  FileClient send file, and FileServer get file.
+  main.Worker set this server.
+*/
+
+package network
 
 import java.util.logging.Logger
 import java.io.{OutputStream, BufferedOutputStream, FileOutputStream}

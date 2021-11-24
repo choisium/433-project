@@ -5,7 +5,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll}
 import io.grpc.{Server, ServerBuilder, ManagedChannelBuilder}
 
-import master.{NetworkServer}
+import network.{NetworkServer}
 import message.connection.{ConnectionGrpc, ConnectRequest, ConnectResponse}
 
 
@@ -31,7 +31,7 @@ class NetworkServerTest extends AnyFunSuite with ServerTest {
   test("Connect to server replies success message") {
     val channel = ManagedChannelBuilder.forAddress("localhost", testPort).usePlaintext.build
     val blockingStub = ConnectionGrpc.blockingStub(channel)
-    val response = blockingStub.connect(new ConnectRequest)
+    val response = blockingStub.connect(new ConnectRequest("localhost", 8090))
 
     assert (response.id == 1)
     assert (response.success == true)

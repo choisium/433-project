@@ -1,5 +1,10 @@
-package worker
+/*
+  Make network request for file shuffle.
+  FileClient send file, and FileServer get file.
+  main.Worker set this client.
+*/
 
+package network
 
 import com.google.protobuf.ByteString
 

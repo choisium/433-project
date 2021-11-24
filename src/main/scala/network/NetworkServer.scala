@@ -1,4 +1,10 @@
-package master
+/*
+  Respond to network request for connection to master.
+  NetworkClient send request, and NetworkClient responed to the request.
+  main.Master set this client.
+*/
+
+package network
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -10,8 +16,13 @@ import io.grpc.stub.StreamObserver;
 
 import message.connection.{ConnectionGrpc, ConnectRequest, ConnectResponse}
 
+class WorkerInfo(id: Int, ip: String, port: Int) {
+  var keyRange: (String, String) = null
+}
 
 class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorkerNum: Int) { self =>
+  require(requiredWorkerNum > 0, "requiredWorkerNum should be positive")
+
   val logger: Logger = Logger.getLogger(classOf[NetworkServer].getName)
   var server: Server = null
 
@@ -42,7 +53,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
 
   class ConnectionImpl() extends ConnectionGrpc.Connection {
     override def connect(request: ConnectRequest): Future[ConnectResponse] = {
-      Future.successful(new ConnectResponse(1, true))
+      Future.successful(new ConnectResponse(true, 1))
     }
   }
 }

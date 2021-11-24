@@ -1,6 +1,7 @@
-package worker
+package network
 
 import scala.concurrent.ExecutionContext
+import network.FileClient
 
 object WorkerClient {
   def main(args: Array[String]): Unit = {

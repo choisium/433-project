@@ -1,5 +1,10 @@
-package worker
+/*
+  Make network request for connection to master.
+  NetworkClient send request, and NetworkClient responed to the request.
+  main.Worker set this client.
+*/
 
+package network
 
 import com.google.protobuf.ByteString
 

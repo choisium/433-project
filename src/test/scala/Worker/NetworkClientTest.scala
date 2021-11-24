@@ -6,8 +6,7 @@ import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll}
 import org.scalamock.scalatest.MockFactory
 import io.grpc.{Server, ServerBuilder, ManagedChannelBuilder}
 
-import master.NetworkServer
-import worker.NetworkClient
+import network.{NetworkServer, NetworkClient}
 import message.connection.{ConnectionGrpc, ConnectRequest, ConnectResponse}
 
 trait BaseClientTest extends AnyFunSuite with BeforeAndAfterAll with MockFactory {
