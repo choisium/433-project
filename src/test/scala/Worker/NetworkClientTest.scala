@@ -36,7 +36,7 @@ trait BaseClientTest extends AnyFunSuite with BeforeAndAfterAll with MockFactory
   }
 }
 
-class HelloWorldClientTest extends AnyFunSuite with BaseClientTest {
+class NetworkClientTest extends AnyFunSuite with BaseClientTest {
     test("client tries to connect") {
       val ip = "localhost"
       val port = 8081

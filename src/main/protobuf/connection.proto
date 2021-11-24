@@ -14,6 +14,12 @@ message ConnectResponse {
   int32 id = 2;      // positive if success is true
 }
 
+message TerminateRequest {
+  int32 id = 1;
+}
+message TerminateResponse { }
+
 service Connection {
   rpc Connect(ConnectRequest) returns (ConnectResponse) {}
+  rpc Terminate(TerminateRequest) returns (TerminateResponse) {}
 }
