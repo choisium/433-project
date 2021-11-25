@@ -16,7 +16,8 @@ import io.grpc.stub.StreamObserver
 
 import scala.io.Source
 
-import message.connection.{ConnectionGrpc, ConnectRequest, ConnectResponse, TerminateRequest, TerminateResponse}
+import message.connection.ConnectionGrpc
+import message.connection._
 
 
 class NetworkClient(host: String, port: Int) {
@@ -30,7 +31,7 @@ class NetworkClient(host: String, port: Int) {
     if (id > 0) {
       val response = blockingStub.terminate(new TerminateRequest(id))
     } else {}
-    channel.shutdown().awaitTermination(5, TimeUnit.SECONDS)
+    channel.shutdown.awaitTermination(5, TimeUnit.SECONDS)
   }
 
   def connect(ip: String, port: Int): Int = {

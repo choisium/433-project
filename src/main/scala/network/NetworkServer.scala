@@ -15,7 +15,8 @@ import java.io.{OutputStream, BufferedOutputStream, FileOutputStream}
 import io.grpc.{Server, ServerBuilder}
 import io.grpc.stub.StreamObserver;
 
-import message.connection.{ConnectionGrpc, ConnectRequest, ConnectResponse, TerminateRequest, TerminateResponse}
+import message.connection.ConnectionGrpc
+import message.connection._
 
 class WorkerInfo(ip: String, port: Int) {
   var keyRange: (String, String) = null
@@ -43,13 +44,13 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
 
   def stop(): Unit = {
     if (server != null) {
-      server.shutdown()
+      server.shutdown
     }
   }
 
   def blockUntilShutdown(): Unit = {
     if (server != null) {
-      server.awaitTermination()
+      server.awaitTermination
     }
   }
 
