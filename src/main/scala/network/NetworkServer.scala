@@ -17,10 +17,16 @@ import io.grpc.stub.StreamObserver;
 
 import message.connection.ConnectionGrpc
 import message.connection._
+import common.{WorkerInfo, InvalidStateException}
 
-class WorkerInfo(ip: String, port: Int) {
-  var keyRange: (String, String) = null
-}
+
+// State case objects
+sealed trait MasterState
+case object MASTERINIT extends MasterState
+case object CONNECTED extends MasterState
+case object SORTED extends MasterState
+case object TERMINATE extends MasterState
+
 
 class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorkerNum: Int) { self =>
   require(requiredWorkerNum > 0, "requiredWorkerNum should be positive")
@@ -28,6 +34,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
   val logger = Logger.getLogger(classOf[NetworkServer].getName)
   var server: Server = null
   val workers = Map[Int, WorkerInfo]()
+  var state: MasterState = MASTERINIT
 
   def start(): Unit = {
     server = ServerBuilder.forPort(port)
@@ -56,9 +63,16 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
 
   class ConnectionImpl() extends ConnectionGrpc.Connection {
     override def connect(request: ConnectRequest): Future[ConnectResponse] = {
+      if (state != MASTERINIT) {
+        Future.failed(new InvalidStateException)
+      }
+
       workers.synchronized {
         if (workers.size < requiredWorkerNum) {
           workers(workers.size + 1) = new WorkerInfo(request.ip, request.port);
+          if (workers.size == requiredWorkerNum) {
+            state = CONNECTED
+          }
           Future.successful(new ConnectResponse(true, workers.size))
         } else {
           Future.successful(new ConnectResponse(false, -1))
@@ -69,7 +83,8 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
     override def terminate(request: TerminateRequest): Future[TerminateResponse] = {
       workers.synchronized {
         val worker = workers.remove(request.id)
-        if (workers.size == 0) {
+        if (state != MASTERINIT && workers.size == 0) {
+          state = TERMINATE
           stop
         }
         Future.successful(new TerminateResponse)

@@ -1,4 +1,4 @@
-package io.grpc.examples.helloworld;
+package network;
 
 import scala.concurrent.ExecutionContext
 import org.scalatest.funsuite.AnyFunSuite
@@ -36,6 +36,7 @@ class NetworkServerTest extends AnyFunSuite {
       val response = mockClient.blockingStub.connect(new ConnectRequest("localhost", 9001))
       assert (response.id == 1)
       assert (response.success == true)
+      assert (testServer.server.state == CONNECTED)
     } finally {
       mockClient.shutdown
       testServer.shutdown
@@ -54,6 +55,7 @@ class NetworkServerTest extends AnyFunSuite {
       val response1 = mockClient1.blockingStub.connect(new ConnectRequest("localhost", 9001))
       assert (response1.id == 1)
       assert (response1.success == true)
+      assert (testServer.server.state == CONNECTED)
       val response2 = mockClient2.blockingStub.connect(new ConnectRequest("localhost", 9002))
       assert (response2.success == false)
     } finally {

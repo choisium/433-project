@@ -27,19 +27,18 @@ class NetworkClient(host: String, port: Int) {
   val blockingStub = ConnectionGrpc.blockingStub(channel)
   val asyncStub = ConnectionGrpc.stub(channel)
 
-  def shutdown(id: Int): Unit = {
+  var id: Int = -1
+
+  def shutdown: Unit = {
     if (id > 0) {
       val response = blockingStub.terminate(new TerminateRequest(id))
     } else {}
     channel.shutdown.awaitTermination(5, TimeUnit.SECONDS)
   }
 
-  def connect(ip: String, port: Int): Int = {
+  def connect(ip: String, port: Int): Boolean = {
     val response = blockingStub.connect(new ConnectRequest(ip, port))
-    if (response.success) {
-      response.id
-    } else {
-      -1
-    }
+    id = response.id
+    response.success
   }
 }
