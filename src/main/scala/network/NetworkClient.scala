@@ -39,6 +39,7 @@ class NetworkClient(host: String, port: Int) {
   def connect(ip: String, port: Int): Boolean = {
     val response = blockingStub.connect(new ConnectRequest(ip, port))
     id = response.id
+    logger.info("Connection result: " + response.success)
     response.success
   }
 }

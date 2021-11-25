@@ -9,6 +9,7 @@ package network
 import scala.concurrent.{ExecutionContext, Future}
 import scala.collection.mutable.Map
 
+import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
 import java.io.{OutputStream, BufferedOutputStream, FileOutputStream}
 
@@ -51,7 +52,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
 
   def stop(): Unit = {
     if (server != null) {
-      server.shutdown
+      server.shutdown.awaitTermination(5, TimeUnit.SECONDS)
     }
   }
 
