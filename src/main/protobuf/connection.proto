@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package message;
+
+// Worker sends this to master to connect
+message ConnectRequest {
+  string ip = 1;     // worker file server's ip
+  int32 port = 2;    // worker file server's port
+}
+
+// Master responds whether the worker's request is success or not
+message ConnectResponse {
+  bool success = 1;  // true: connection success
+  int32 id = 2;      // positive if success is true
+}
+
+// Worker sends this to master to notify its termination
+message TerminateRequest {
+  int32 id = 1;
+}
+
+// Master responds to worker
+message TerminateResponse { }
+
+service Connection {
+  rpc Connect(ConnectRequest) returns (ConnectResponse) {}
+  rpc Terminate(TerminateRequest) returns (TerminateResponse) {}
+}
