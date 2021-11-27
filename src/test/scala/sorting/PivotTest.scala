@@ -9,7 +9,7 @@ import sorting.Pivoting
 
 class PivotingTest extends AnyFunSuite {
   trait TestEnv {
-    val filepath = "/Users/choisium/Development/433-project/src/test/resources/sample"
+    val filepath = System.getProperty("user.dir") + "/src/test/resources/sample"
     val keyMap = Map("s" -> 1, "*" -> 2, "}" -> 2, "9" -> 1, "J" -> 1, "u" -> 2,
                      "&" -> 1, "A" -> 1, "5" -> 1, "G" -> 1, "Q" -> 1, "0" -> 1,
                      "K" -> 1, ">" -> 1, "o" -> 2, "m" -> 2, "`" -> 1, "," -> 1,

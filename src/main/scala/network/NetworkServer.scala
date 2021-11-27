@@ -11,7 +11,7 @@ import scala.collection.mutable.Map
 
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
-import java.io.{OutputStream, BufferedOutputStream, FileOutputStream}
+import java.io.{OutputStream, BufferedOutputStream, FileOutputStream, File}
 
 import io.grpc.{Server, ServerBuilder}
 import io.grpc.stub.StreamObserver;
@@ -33,11 +33,31 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
   require(requiredWorkerNum > 0, "requiredWorkerNum should be positive")
 
   val logger = Logger.getLogger(classOf[NetworkServer].getName)
+
   var server: Server = null
   val workers = Map[Int, WorkerInfo]()
   var state: MasterState = MASTERINIT
 
+  val baseDirPath = System.getProperty("user.dir") + "/src/main/resources/master"
+
+  def createBaseDir(): Unit = {
+    val baseDir = new File(baseDirPath)
+    if (!baseDir.exists) {
+      baseDir.mkdir  // need to handle exception
+    }
+    assert(baseDir.exists, "after create base directory")
+  }
+
+  def deleteFilesInBaseDir(): Unit = {
+    val baseDir = new File(baseDirPath)
+    for (file <- baseDir.listFiles) {
+      file.delete
+    }
+    assert(baseDir.exists && baseDir.listFiles.length == 0)
+  }
+
   def start(): Unit = {
+    createBaseDir
     server = ServerBuilder.forPort(port)
       .addService(ConnectionGrpc.bindService(new ConnectionImpl, executionContext))
       .build
@@ -48,12 +68,14 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
       self.stop()
       System.err.println("*** server shut down")
     }
+
   }
 
   def stop(): Unit = {
     if (server != null) {
       server.shutdown.awaitTermination(5, TimeUnit.SECONDS)
     }
+    deleteFilesInBaseDir
   }
 
   def blockUntilShutdown(): Unit = {
@@ -77,6 +99,31 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
           Future.successful(new ConnectResponse(true, workers.size))
         } else {
           Future.successful(new ConnectResponse(false, -1))
+        }
+      }
+    }
+
+    override def pivot(responseObserver: StreamObserver[PivotResponse]): StreamObserver[PivotRequest] = {
+      new StreamObserver[PivotRequest] {
+        val filepath = baseDirPath + "/sample"
+        var writer: BufferedOutputStream = null
+
+        override def onNext(request: PivotRequest): Unit = {
+          if (writer == null) {
+            writer = new BufferedOutputStream(new FileOutputStream(filepath+request.id))
+          }
+          request.data.writeTo(writer)
+          writer.flush
+        }
+
+        override def onError(t: Throwable): Unit = {
+          logger.warning("Sample cancelled")
+        }
+
+        override def onCompleted(): Unit = {
+          writer.close
+          responseObserver.onNext(PivotResponse())
+          responseObserver.onCompleted
         }
       }
     }

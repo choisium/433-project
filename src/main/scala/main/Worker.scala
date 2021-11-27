@@ -14,7 +14,9 @@ object Worker {
       val res = client.connect("localhost", 5001)
       if (res) {
         // Sampling Phase
-        Thread.sleep(30 * 1000)
+        println("connect success")
+        client.pivot
+        Thread.sleep(5 * 1000)
       }
     } finally {
       client.shutdown
