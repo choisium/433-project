@@ -3,6 +3,13 @@ package sorting
 import scala.io.Source
 import scala.collection.immutable.SortedMap
 
+/*  This class computes pivots from the file in filepath.
+    - filepath: The file used to compute pivots.
+                Assumed that the file in this filepath exists
+                and has same format as gensort result.
+    - rangeNum: Expected range count.
+                Usualy same as requiredWorkerNum in NetworkServer.
+    - keyLength: The prefix length of key used to create KeyMap. */
 class Pivoting(filepath: String, rangeNum: Int, keyLength: Int) {
     require(rangeNum > 0)
     require(keyLength > 0)
@@ -65,7 +72,6 @@ class Pivoting(filepath: String, rangeNum: Int, keyLength: Int) {
     def run(): Seq[(String, String)] = {
         val keyMap = getKeyMap
         val pivots = findPivot(keyMap)
-        
         getRangeFromPivot(pivots)
     }
 }
