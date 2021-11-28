@@ -6,6 +6,10 @@
 
 package network
 
+import scala.io.Source
+import scala.collection.mutable.Map
+import scala.concurrent.{Promise}
+
 import com.google.protobuf.ByteString
 
 import java.util.concurrent.TimeUnit
@@ -15,10 +19,9 @@ import java.io.File
 import io.grpc.{ManagedChannelBuilder, Status}
 import io.grpc.stub.StreamObserver
 
-import scala.io.Source
-
 import message.connection.ConnectionGrpc
 import message.connection._
+import common.WorkerInfo
 
 
 class NetworkClient(host: String, port: Int) {
@@ -30,6 +33,8 @@ class NetworkClient(host: String, port: Int) {
 
   var id: Int = -1
   val baseDirPath = System.getProperty("user.dir") + "/src/main/resources/"
+  var workerNum: Int = -1
+  val workers = Map[Int, WorkerInfo]()
 
   def shutdown: Unit = {
     if (id > 0) {
@@ -45,15 +50,23 @@ class NetworkClient(host: String, port: Int) {
     response.success
   }
 
-  def pivot(): Unit = {
+  def pivot(pivotPromise: Promise[Unit]): Unit = {
     logger.info("*** DataRoute")
     val samplePath = s"$baseDirPath/$id/sample"
     assert (new File(samplePath).isFile)
 
     val responseObserver = new StreamObserver[PivotResponse]() {
       override def onNext(response: PivotResponse): Unit = {
-        println(response)
+        workerNum = response.workerNum
+        for (w <- response.workers) {
+          workers(w.id) = WorkerInfo.convertMessageToInfo(w)
+        }
+
+        for ((id, w) <- workers) {
+          println(id, w.keyRange)
+        }
         logger.info("DataRoute - Server response onNext")
+        pivotPromise.success()
       }
 
       override def onError(t: Throwable): Unit = {

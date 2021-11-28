@@ -1,6 +1,8 @@
 package network
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Promise, Await}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 import network.NetworkClient
 
 
@@ -15,7 +17,9 @@ object Worker {
       if (res) {
         // Sampling Phase
         println("connect success")
-        client.pivot
+        val pivotPromise = Promise[Unit]()
+        client.pivot(pivotPromise)
+        Await.ready(pivotPromise.future, Duration.Inf)
         Thread.sleep(5 * 1000)
       }
     } finally {
