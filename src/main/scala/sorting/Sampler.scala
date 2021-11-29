@@ -7,14 +7,10 @@ import scala.io.Source
 import scala.util.control.Breaks.break
 
 object Sampler {
-
-  /* file reading example */
-
-  def sample(sampleSize: Int): Unit = {
+  def sample(workerPath: String, sampleSize: Int): Unit = {
     try {
-      val projectPath: String = System.getProperty("user.dir")
-      val bufferedSource = Source.fromFile(projectPath + "/src/main/resources/1/input/input-01")
-      val sampleWriter = new PrintWriter(new File(projectPath + "/src/main/resources/1/sample"))
+      val bufferedSource = Source.fromFile(workerPath + "/input/input-1")
+      val sampleWriter = new PrintWriter(new File(workerPath + "/sample"))
 
       var sampleCount: Int = 0
       val lineOfInput = bufferedSource.getLines();
