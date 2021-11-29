@@ -17,7 +17,7 @@ class SamplingTest extends AnyFunSuite {
     assert(isContentsEqual)
     assert(sampledFile.length == testSampledFile.length)
   } catch {
-    case ex: Exception => println(ex)
+    case ex: Exception => assert(false)
   }
 
   def isContentsOfSampleAndTestFileEqual(samplePath: String, testFilePath: String): Boolean = {
