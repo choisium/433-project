@@ -63,7 +63,7 @@ class NetworkClient(host: String, port: Int) {
         }
 
         for ((id, w) <- workers) {
-          println(id, w.keyRange)
+          println(id, w.keyRange, w.subKeyRange)
         }
         logger.info("DataRoute - Server response onNext")
         pivotPromise.success()

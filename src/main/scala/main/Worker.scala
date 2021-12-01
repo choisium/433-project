@@ -15,12 +15,17 @@ object Worker {
       // Connect Phase
       val res = client.connect("localhost", 5001)
       if (res) {
-        // Sampling Phase
         println("connect success")
+
+        // // Do Sampling
+        // // TODO: workerpath, sampleSize 설정
+        // // Sampler에서 inputPath를 받도록 설정(from arguments)
+        // Sampler(inputPath, workpath, sampleSize)
+
+        // Send PivotRequest
         val pivotPromise = Promise[Unit]()
         client.pivot(pivotPromise)
         Await.ready(pivotPromise.future, Duration.Inf)
-        Thread.sleep(5 * 1000)
       }
     } finally {
       client.shutdown

@@ -22,7 +22,7 @@ import io.grpc.stub.StreamObserver;
 import message.connection.ConnectionGrpc
 import message.connection._
 import common.{WorkerInfo, WORKERINIT, SAMPLED, PARTITIONED, SHUFFLED, DONE}
-import sorting.Pivoting
+import sorting.Pivoter
 
 
 // State case objects
@@ -124,7 +124,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
         override def onNext(request: PivotRequest): Unit = {
           workerId = request.id
           if (writer == null) {
-            writer = new BufferedOutputStream(new FileOutputStream(filepath, true))
+            writer = new BufferedOutputStream(new FileOutputStream(filepath + request.id))
           }
           request.data.writeTo(writer)
           writer.flush
@@ -141,10 +141,11 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
           }
 
           if (state == CONNECTED && workers.size == requiredWorkerNum && workers.forall {case (_, worker) => worker.state == SAMPLED}) {
-            val pivot = new Pivoting(filepath, requiredWorkerNum, 1);
-            val keyRange = pivot.run
+            val pivot = new Pivoter(filepath, requiredWorkerNum, requiredWorkerNum, 1);
+            val ranges = pivot.run
             for ((id, worker) <- workers) {
-              worker.keyRange = keyRange(id - 1)
+              worker.keyRange = ranges(id - 1)._1
+              worker.subKeyRange = ranges(id - 1)._2
               println(id, worker.keyRange)
             }
 

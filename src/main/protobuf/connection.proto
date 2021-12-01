@@ -19,12 +19,17 @@ message PivotRequest {
   bytes data = 2;
 }
 
+message RangeMessage {
+  string lowerbound = 4;
+  string upperbound = 5;
+}
+
 message WorkerMessage {
   int32 id = 1;
   string ip = 2;
   int32 port = 3;
-  string lowerbound = 4;
-  string upperbound = 5;
+  RangeMessage keyRange = 4;
+  repeated RangeMessage subKeyRange = 5;
 }
 
 message PivotResponse {
