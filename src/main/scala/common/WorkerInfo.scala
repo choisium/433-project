@@ -1,6 +1,6 @@
 package common
 
-import message.connection.{WorkerMessage, RangeMessage}
+import message.common.{WorkerMessage, RangeMessage}
 
 sealed trait WorkerState
 case object WORKERINIT extends WorkerState

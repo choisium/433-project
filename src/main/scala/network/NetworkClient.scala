@@ -19,9 +19,10 @@ import java.io.File
 import io.grpc.{ManagedChannelBuilder, Status}
 import io.grpc.stub.StreamObserver
 
-import message.connection.ConnectionGrpc
+import message.common._
 import message.connection._
-import common.WorkerInfo
+import common._
+import sorting.Sampler
 
 
 class NetworkClient(host: String, port: Int) {
@@ -32,57 +33,58 @@ class NetworkClient(host: String, port: Int) {
   val asyncStub = ConnectionGrpc.stub(channel)
 
   var id: Int = -1
-  val baseDirPath = System.getProperty("user.dir") + "/src/main/resources/"
+  lazy val baseDirPath = {
+    assert (id > 0)
+    System.getProperty("user.dir") + "/src/main/resources/" + id
+  }
   var workerNum: Int = -1
   val workers = Map[Int, WorkerInfo]()
 
   def shutdown: Unit = {
     if (id > 0) {
       val response = blockingStub.terminate(new TerminateRequest(id))
-    } else {}
+    }
     channel.shutdown.awaitTermination(5, TimeUnit.SECONDS)
   }
 
-  def connect(ip: String, port: Int): Boolean = {
+  def requestConnect(ip: String, port: Int): Unit = {
     val response = blockingStub.connect(new ConnectRequest(ip, port))
     id = response.id
-    logger.info("Connection result: " + response.success)
-    response.success
   }
 
-  def pivot(pivotPromise: Promise[Unit]): Unit = {
-    logger.info("*** DataRoute")
-    val samplePath = s"$baseDirPath/$id/sample"
-    assert (new File(samplePath).isFile)
+  def sample(): Unit = {
+    /* TODO: Need to get input directory from user command */
+    val inputDirPath = baseDirPath + "/input"
 
-    val responseObserver = new StreamObserver[PivotResponse]() {
-      override def onNext(response: PivotResponse): Unit = {
-        workerNum = response.workerNum
-        for (w <- response.workers) {
-          workers(w.id) = WorkerInfo.convertMessageToInfo(w)
-        }
+    Sampler.sample(inputDirPath, baseDirPath, 100)
+    assert (new File(baseDirPath + "/sample").isFile)
+  }
 
-        for ((id, w) <- workers) {
-          println(id, w.keyRange, w.subKeyRange)
+  def requestSample(samplePromise: Promise[Unit]): Unit = {
+    logger.info("[requestSample] send sample started")
+
+    val responseObserver = new StreamObserver[SampleResponse]() {
+      override def onNext(response: SampleResponse): Unit = {
+        if (response.status == StatusEnum.SUCCESS) {
+          samplePromise.success()
         }
-        logger.info("DataRoute - Server response onNext")
-        pivotPromise.success()
       }
 
       override def onError(t: Throwable): Unit = {
-        logger.warning(s"DataRoute - Server response Failed: ${Status.fromThrowable(t)}")
+        logger.warning(s"[requestSample] Server response Failed: ${Status.fromThrowable(t)}")
       }
 
       override def onCompleted(): Unit = {
-        logger.info("DataRoute - Server response onCompleted")
+        logger.info("[requestSample] Server response onCompleted")
       }
     }
 
-    val requestObserver = asyncStub.pivot(responseObserver)
+    val requestObserver = asyncStub.sample(responseObserver)
 
     try {
+      val samplePath = baseDirPath + "/sample"
       for (line <- Source.fromFile(samplePath).getLines) {
-        val request = PivotRequest(id = id, data = ByteString.copyFromUtf8(line+"\n"))
+        val request = SampleRequest(id = id, data = ByteString.copyFromUtf8(line+"\n"))
         requestObserver.onNext(request)
       }
     } catch {
@@ -95,5 +97,27 @@ class NetworkClient(host: String, port: Int) {
 
     // Mark the end of requests
     requestObserver.onCompleted()
+  }
+
+  def pivot(): Unit = {
+    val response = blockingStub.pivot(new PivotRequest(id))
+    response.status match {
+      case StatusEnum.SUCCESS => {
+        workerNum = response.workerNum
+        for (w <- response.workers) {
+          workers(w.id) = WorkerInfo.convertMessageToInfo(w)
+        }
+        assert (workers.size == workerNum)
+      }
+      case StatusEnum.FAILED => {
+        logger.info("[Pivot] Pivot failed.")
+        throw new PivotingFailedException
+      }
+      case _ => {
+        /* Wait 5 seconds and retry */
+        Thread.sleep(5 * 1000)
+        pivot()
+      }
+    }
   }
 }

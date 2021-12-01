@@ -2,21 +2,16 @@ syntax = "proto3";
 
 package message;
 
+import "common.proto";
+
 // Worker sends this to another worker
 message FileRequest {
   bytes data = 2;
 }
 
-enum FileStatus {
-  PENDING = 0;
-  IN_PROGRESS = 1;
-  SUCCESS = 2;
-  FAILED = 3;
-}
-
 // Worker sends this to requested worker to notify receiving is done
 message FileResponse {
-  FileStatus status = 1;
+  StatusEnum status = 1;
   string message = 2;
 }
 

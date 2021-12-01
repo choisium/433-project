@@ -12,21 +12,25 @@ object Worker {
     val client = new NetworkClient(args(0), args(1).toInt)
 
     try {
-      // Connect Phase
-      val res = client.connect("localhost", 5001)
-      if (res) {
-        println("connect success")
+      // Send ConnectRequest
+      val res = client.requestConnect("localhost", 5001)
+      println("connect success")
 
-        // // Do Sampling
-        // // TODO: workerpath, sampleSize 설정
-        // // Sampler에서 inputPath를 받도록 설정(from arguments)
-        // Sampler(inputPath, workpath, sampleSize)
+      // Do Sampling
+      client.sample
 
-        // Send PivotRequest
-        val pivotPromise = Promise[Unit]()
-        client.pivot(pivotPromise)
-        Await.ready(pivotPromise.future, Duration.Inf)
+      // Send SampleRequest
+      val samplePromise = Promise[Unit]()
+      client.requestSample(samplePromise)
+      Await.ready(samplePromise.future, Duration.Inf)
+
+      // Send PivotRequest
+      client.pivot
+      for ((id, w) <- client.workers) {
+        println(id, w.keyRange, w.subKeyRange)
       }
+
+      Thread.sleep(10 * 1000)
     } finally {
       client.shutdown
     }

@@ -4,9 +4,9 @@ import java.io.{File, PrintWriter}
 import scala.io.Source
 
 object Sampler {
-  def sample(workerPath: String, sampleSize: Int): Unit = {
+  def sample(inputPath: String, workerPath: String, sampleSize: Int): Unit = {
     try {
-      val bufferedSource = Source.fromFile(workerPath + "/input/input-1")
+      val bufferedSource = Source.fromFile(inputPath + "/input-1")
       val sampleWriter = new PrintWriter(new File(workerPath + "/sample"))
 
       for (line <- bufferedSource.getLines.take(sampleSize)) {

@@ -19,9 +19,9 @@ import java.io.{OutputStream, BufferedOutputStream, FileOutputStream, File}
 import io.grpc.{Server, ServerBuilder}
 import io.grpc.stub.StreamObserver;
 
-import message.connection.ConnectionGrpc
+import message.common._
 import message.connection._
-import common.{WorkerInfo, WORKERINIT, SAMPLED, PARTITIONED, SHUFFLED, DONE}
+import common._
 import sorting.Pivoter
 
 
@@ -32,6 +32,7 @@ case object CONNECTED extends MasterState
 case object PIVOTED extends MasterState
 case object SORTED extends MasterState
 case object TERMINATE extends MasterState
+case object FAILED extends MasterState
 
 
 class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorkerNum: Int) { self =>
@@ -98,7 +99,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
   class ConnectionImpl() extends ConnectionGrpc.Connection {
     override def connect(request: ConnectRequest): Future[ConnectResponse] = {
       if (state != MASTERINIT) {
-        Future.successful(new ConnectResponse(false, -1))
+        Future.successful(new InvalidStateException)
       }
 
       workers.synchronized {
@@ -107,21 +108,22 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
           if (workers.size == requiredWorkerNum) {
             state = CONNECTED
           }
-          Future.successful(new ConnectResponse(true, workers.size))
+          Future.successful(new ConnectResponse(workers.size))
         } else {
-          Future.successful(new ConnectResponse(false, -1))
+          Future.failed(new WorkerFullException)
         }
       }
     }
 
-    override def pivot(responseObserver: StreamObserver[PivotResponse]): StreamObserver[PivotRequest] = {
+    override def sample(responseObserver: StreamObserver[SampleResponse]): StreamObserver[SampleRequest] = {
       assert (state == MASTERINIT || state == CONNECTED)
-      new StreamObserver[PivotRequest] {
+
+      new StreamObserver[SampleRequest] {
         val filepath = baseDirPath + "/sample"
         var writer: BufferedOutputStream = null
         var workerId: Int = -1
 
-        override def onNext(request: PivotRequest): Unit = {
+        override def onNext(request: SampleRequest): Unit = {
           workerId = request.id
           if (writer == null) {
             writer = new BufferedOutputStream(new FileOutputStream(filepath + request.id))
@@ -136,34 +138,57 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
 
         override def onCompleted(): Unit = {
           writer.close
+
+          responseObserver.onNext(new SampleResponse(status = StatusEnum.SUCCESS))
+          responseObserver.onCompleted
+
           workers.synchronized{
             workers(workerId).state = SAMPLED
           }
 
-          if (state == CONNECTED && workers.size == requiredWorkerNum && workers.forall {case (_, worker) => worker.state == SAMPLED}) {
-            val pivot = new Pivoter(filepath, requiredWorkerNum, requiredWorkerNum, 1);
-            val ranges = pivot.run
-            for ((id, worker) <- workers) {
-              worker.keyRange = ranges(id - 1)._1
-              worker.subKeyRange = ranges(id - 1)._2
-              println(id, worker.keyRange)
+          if (state == CONNECTED &&
+              workers.size == requiredWorkerNum &&
+              workers.forall {case (_, worker) => worker.state == SAMPLED}) {
+            /* All workers sent sample. Master starts pivot. */
+            val f = Future {
+              val pivot = new Pivoter(filepath, requiredWorkerNum, requiredWorkerNum, 1);
+              val ranges = pivot.run
+              workers.synchronized{
+                for ((id, worker) <- workers) {
+                  worker.keyRange = ranges(id - 1)._1
+                  worker.subKeyRange = ranges(id - 1)._2
+                  println(id, worker.keyRange, worker.subKeyRange)
+                }
+              }
             }
-
-            pivotPromise.success(PivotResponse(
-              workerNum = requiredWorkerNum,
-              workers = workersToMessage
-            ))
-            state = PIVOTED
-          }
-
-          pivotPromise.future.onComplete {
-            case Success(pivotResponse) => {
-              println("success sending pivot message")
-              responseObserver.onNext(pivotResponse)
-              responseObserver.onCompleted
+            f.onComplete {
+              case Success(_) => {
+                state = PIVOTED
+                logger.info("[Pivot] Pivot done successfully\n")
+              }
+              case Failure(t) => {
+                state = FAILED
+                logger.info("[Pivot] Pivot failed: " + t.getMessage)
+              }
             }
           }
         }
+      }
+    }
+
+    override def pivot(request: PivotRequest): Future[PivotResponse] = state match {
+      case PIVOTED => {
+        Future.successful(new PivotResponse(
+          status = StatusEnum.SUCCESS,
+          workerNum = requiredWorkerNum,
+          workers = workersToMessage
+        ))
+      }
+      case FAILED => {
+        Future.successful(new PivotResponse(status = StatusEnum.FAILED))
+      }
+      case _ => {
+        Future.successful(new PivotResponse(status = StatusEnum.IN_PROGRESS))
       }
     }
 
