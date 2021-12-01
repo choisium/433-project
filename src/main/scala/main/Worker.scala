@@ -25,7 +25,7 @@ object Worker {
       Await.ready(samplePromise.future, Duration.Inf)
 
       // Send PivotRequest
-      client.pivot
+      client.requestPivot
       for ((id, w) <- client.workers) {
         println(id, w.keyRange, w.subKeyRange)
       }

@@ -53,6 +53,7 @@ class NetworkClient(host: String, port: Int) {
   }
 
   def sample(): Unit = {
+    logger.info("[sample] start Sample")
     /* TODO: Need to get input directory from user command */
     val inputDirPath = baseDirPath + "/input"
 
@@ -61,7 +62,7 @@ class NetworkClient(host: String, port: Int) {
   }
 
   def requestSample(samplePromise: Promise[Unit]): Unit = {
-    logger.info("[requestSample] send sample started")
+    logger.info("[requestSample] Try to send sample")
 
     val responseObserver = new StreamObserver[SampleResponse]() {
       override def onNext(response: SampleResponse): Unit = {
@@ -75,7 +76,7 @@ class NetworkClient(host: String, port: Int) {
       }
 
       override def onCompleted(): Unit = {
-        logger.info("[requestSample] Server response onCompleted")
+        logger.info("[requestSample] Done sending sample")
       }
     }
 
@@ -99,7 +100,9 @@ class NetworkClient(host: String, port: Int) {
     requestObserver.onCompleted()
   }
 
-  def pivot(): Unit = {
+  def requestPivot(): Unit = {
+    logger.info("[requestPivot] Try to get pivot")
+
     val response = blockingStub.pivot(new PivotRequest(id))
     response.status match {
       case StatusEnum.SUCCESS => {
@@ -116,7 +119,7 @@ class NetworkClient(host: String, port: Int) {
       case _ => {
         /* Wait 5 seconds and retry */
         Thread.sleep(5 * 1000)
-        pivot()
+        requestPivot
       }
     }
   }
