@@ -117,13 +117,33 @@ class NetworkClient(host: String, port: Int) {
         assert (workers.size == workerNum)
       }
       case StatusEnum.FAILED => {
-        logger.info("[Pivot] Pivot failed.")
-        throw new PivotingFailedException
+        logger.info("[requestPivot] Pivot failed.")
+        throw new WorkerFailedException
       }
       case _ => {
         /* Wait 5 seconds and retry */
         Thread.sleep(5 * 1000)
         requestPivot
+      }
+    }
+  }
+
+  def requestSort(): Unit = {
+    logger.info("[RequestSort] Notify sort done and shuffling ready")
+
+    val response = blockingStub.sort(new SortRequest(id))
+    response.status match {
+      case StatusEnum.SUCCESS => {
+        logger.info("[RequestSort] Other workers are shuffling ready too")
+      }
+      case StatusEnum.FAILED => {
+        logger.info("[RequestSort] RequestSort failed.")
+        throw new WorkerFailedException
+      }
+      case _ => {
+        /* Wait 5 seconds and retry */
+        Thread.sleep(5 * 1000)
+        requestSort
       }
     }
   }

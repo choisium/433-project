@@ -30,6 +30,20 @@ object Worker {
         println(id, w.keyRange, w.subKeyRange)
       }
 
+      // Do Sorting
+
+      // Start FileServer
+
+      // Send SortRequest
+      client.requestSort
+      println("SortRequest done. Shuffling start.")
+
+      // Start FileClient
+
+      // Do Shuffle
+
+      // Send DoneRequest
+
       Thread.sleep(10 * 1000)
     } finally {
       client.shutdown

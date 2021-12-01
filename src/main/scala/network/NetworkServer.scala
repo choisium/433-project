@@ -25,16 +25,6 @@ import common._
 import sorting.Pivoter
 
 
-// State case objects
-sealed trait MasterState
-case object MASTERINIT extends MasterState
-case object CONNECTED extends MasterState
-case object PIVOTED extends MasterState
-case object SORTED extends MasterState
-case object TERMINATE extends MasterState
-case object FAILED extends MasterState
-
-
 class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorkerNum: Int) { self =>
   require(requiredWorkerNum > 0, "requiredWorkerNum should be positive")
 
@@ -96,10 +86,15 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
     (workers.map{case (id, worker) => WorkerInfo.convertToWorkerMessage(worker)}).toSeq
   }
 
+  def checkAllWorkerStatus(masterState: MasterState, workerState: WorkerState): Boolean = {
+    if (state == masterState &&
+        workers.size == requiredWorkerNum &&
+        workers.forall {case (_, worker) => worker.state == workerState}) true
+    else false
+  }
+
   def tryPivot(): Unit = {
-    if (state == CONNECTED &&
-      workers.size == requiredWorkerNum &&
-      workers.forall {case (_, worker) => worker.state == SAMPLED}) {
+    if (checkAllWorkerStatus(CONNECTED, SAMPLED)) {
       logger.info(s"[TryPivot]: All workers sent sample. Start pivot.")
 
       val filepath = baseDirPath + "/sample"
@@ -212,6 +207,30 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
       }
       case _ => {
         Future.successful(new PivotResponse(status = StatusEnum.IN_PROGRESS))
+      }
+    }
+
+    override def sort(request: SortRequest): Future[SortResponse] = {
+      assert (workers(request.id).state == SAMPLED || workers(request.id).state == SORTED)
+      if (workers(request.id).state == SAMPLED) {
+        workers.synchronized{
+          workers(request.id).state = SORTED
+        }
+      }
+      if (checkAllWorkerStatus(PIVOTED, SORTED)) {
+        state = SHUFFLING
+      }
+
+      state match {
+        case SHUFFLING => {
+          Future.successful(new SortResponse(StatusEnum.SUCCESS))
+        }
+        case FAILED => {
+          Future.failed(new InvalidStateException)
+        }
+        case _ => {
+          Future.successful(new SortResponse(StatusEnum.IN_PROGRESS))
+        }
       }
     }
 
