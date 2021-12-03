@@ -2,6 +2,7 @@ package sorting
 
 import scala.io.Source
 import scala.collection.immutable.SortedMap
+import scala.annotation.tailrec
 
 
 /*  This class computes pivots from the file in filepath.
@@ -37,6 +38,7 @@ class Pivoter(filepath: String, rangeNum: Int, subRangeNum: Int, keyLength: Int)
         val totalRangeNum = rangeNum * subRangeNum
         val limit = keyNum / totalRangeNum
 
+        @tailrec
         def findPivotByAccumulateKeyCount(keyCounts: Seq[(String, Int)], lastKey: String, accum: Int, pivots: Seq[String]): Seq[String] = {
             if (accum >= limit) {
                 findPivotByAccumulateKeyCount(keyCounts, lastKey, 0, pivots :+ lastKey)
@@ -52,6 +54,7 @@ class Pivoter(filepath: String, rangeNum: Int, subRangeNum: Int, keyLength: Int)
     }
 
     def getNextKey(str: String): String = {
+        @tailrec
         def increaseKey(front: String, curChar: Char, back: String): String = {
             assert(front.length > 0 || (curChar != printableChars.last))
             if (curChar == printableChars.last) {

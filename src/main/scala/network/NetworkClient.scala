@@ -9,6 +9,7 @@ package network
 import scala.io.Source
 import scala.collection.mutable.Map
 import scala.concurrent.{Promise}
+import scala.annotation.tailrec
 
 import com.google.protobuf.ByteString
 
@@ -40,19 +41,19 @@ class NetworkClient(host: String, port: Int) {
   var workerNum: Int = -1
   val workers = Map[Int, WorkerInfo]()
 
-  def shutdown: Unit = {
+  final def shutdown: Unit = {
     if (id > 0) {
       val response = blockingStub.terminate(new TerminateRequest(id))
     }
     channel.shutdown.awaitTermination(5, TimeUnit.SECONDS)
   }
 
-  def requestConnect(ip: String, port: Int): Unit = {
+  final def requestConnect(ip: String, port: Int): Unit = {
     val response = blockingStub.connect(new ConnectRequest(ip, port))
     id = response.id
   }
 
-  def sample(): Unit = {
+  final def sample(): Unit = {
     logger.info("[sample] start Sample")
     /* TODO: Need to get input directory from user command */
     val inputDirPath = baseDirPath + "/input"
@@ -61,7 +62,7 @@ class NetworkClient(host: String, port: Int) {
     assert (new File(baseDirPath + "/sample").isFile)
   }
 
-  def requestSample(samplePromise: Promise[Unit]): Unit = {
+  final def requestSample(samplePromise: Promise[Unit]): Unit = {
     logger.info("[requestSample] Try to send sample")
 
     val responseObserver = new StreamObserver[SampleResponse]() {
@@ -100,7 +101,8 @@ class NetworkClient(host: String, port: Int) {
     requestObserver.onCompleted()
   }
 
-  def requestPivot(): Unit = {
+  @tailrec
+  final def requestPivot(): Unit = {
     logger.info("[requestPivot] Try to get pivot")
 
     val response = blockingStub.pivot(new PivotRequest(id))
