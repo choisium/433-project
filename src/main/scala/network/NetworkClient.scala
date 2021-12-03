@@ -170,4 +170,24 @@ class NetworkClient(host: String, port: Int) {
     logger.info("[shuffle] start Shuffle")
     shuffleHandler.shuffle(workers)
   }
+
+  def requestDone(): Unit = {
+    logger.info("[requestDone] Notify shuffle done")
+
+    val response = blockingStub.done(new DoneRequest(id))
+    response.status match {
+      case StatusEnum.SUCCESS => {
+        logger.info("[requestDone] Other workers done shuffling too")
+      }
+      case StatusEnum.FAILED => {
+        logger.info("[requestDone] RequestDone failed.")
+        throw new WorkerFailedException
+      }
+      case _ => {
+        /* Wait 5 seconds and retry */
+        Thread.sleep(5 * 1000)
+        requestDone
+      }
+    }
+  }
 }

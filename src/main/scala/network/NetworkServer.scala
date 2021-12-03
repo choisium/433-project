@@ -235,6 +235,31 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
       }
     }
 
+    override def done(request: DoneRequest): Future[DoneResponse] = {
+      assert (workers(request.id).state == SORTED || workers(request.id).state == SHUFFLED)
+      if (workers(request.id).state == SORTED) {
+        workers.synchronized{
+          workers(request.id).state = SHUFFLED
+        }
+      }
+      if (checkAllWorkerStatus(SHUFFLING, SHUFFLED)) {
+        state = TERMINATE
+        logger.info("[sort] Worker sort done successfully\n")
+      }
+
+      state match {
+        case TERMINATE => {
+          Future.successful(new DoneResponse(StatusEnum.SUCCESS))
+        }
+        case FAILED => {
+          Future.failed(new InvalidStateException)
+        }
+        case _ => {
+          Future.successful(new DoneResponse(StatusEnum.IN_PROGRESS))
+        }
+      }
+    }
+
     override def terminate(request: TerminateRequest): Future[TerminateResponse] = {
       logger.info(s"[Terminate]: Worker ${request.id} tries to terminate")
 

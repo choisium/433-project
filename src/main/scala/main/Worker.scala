@@ -48,7 +48,7 @@ object Worker {
       client.shuffle
 
       // Send DoneRequest
-      Thread.sleep(10 * 1000)
+      client.requestDone
     } finally {
       client.shutdown
     }
