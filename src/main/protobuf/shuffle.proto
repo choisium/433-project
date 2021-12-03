@@ -7,7 +7,8 @@ import "common.proto";
 // Worker sends this to another worker
 message FileRequest {
   int32 id = 1;
-  bytes data = 2;
+  int32 partitionId = 2;
+  bytes data = 3;
 }
 
 // Worker sends this to requested worker to notify receiving is done

@@ -21,6 +21,7 @@ import message.shuffle.{ShuffleGrpc, FileRequest, FileResponse}
 
 class FileServer(executionContext: ExecutionContext, port: Int, id: Int) { self =>
   val logger: Logger = Logger.getLogger(classOf[FileServer].getName)
+  val baseDir = s"${System.getProperty("user.dir")}/src/main/resources/${id}"
   var server: Server = null
 
   def start(): Unit = {
@@ -51,26 +52,29 @@ class FileServer(executionContext: ExecutionContext, port: Int, id: Int) { self 
   class ShuffleImpl() extends ShuffleGrpc.Shuffle {
     override def shuffle(responseObserver: StreamObserver[FileResponse]): StreamObserver[FileRequest] =
       new StreamObserver[FileRequest] {
-        val filepath = s"${System.getProperty("user.dir")}/src/main/resources/${id}/shuffle-"
+        val filepath = baseDir + "/shuffle-"
         var writer: BufferedOutputStream = null
         var senderId: Int = -1
+        var partitionId: Int = -1
 
         override def onNext(request: FileRequest): Unit = {
           senderId = request.id
+          partitionId = request.partitionId
           if (writer == null) {
-            writer = new BufferedOutputStream(new FileOutputStream(filepath + senderId))
+            logger.info(s"[FileServer]: getting from $senderId with partition $partitionId")
+            writer = new BufferedOutputStream(new FileOutputStream(filepath + senderId + "-" + partitionId))
           }
           request.data.writeTo(writer)
           writer.flush
         }
 
         override def onError(t: Throwable): Unit = {
-          logger.warning(s"[FileServer]: Worker $senderId failed to send partition: ${Status.fromThrowable(t)}")
+          logger.warning(s"[FileServer]: Worker $senderId failed to send partition $partitionId: ${Status.fromThrowable(t)}")
           throw t
         }
 
         override def onCompleted(): Unit = {
-          logger.info(s"[FileServer]: Worker $senderId done sending partition")
+          logger.info(s"[FileServer]: Worker $senderId done sending partition $partitionId")
 
           writer.close
           responseObserver.onNext(new FileResponse(StatusEnum.SUCCESS))

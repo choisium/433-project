@@ -31,7 +31,8 @@ class ShuffleHandler(serverHost: String, serverPort: Int, id: Int) {
   }
 
   def shuffle(workers: Map[Int, WorkerInfo]): Unit = {
-    val baseDir = s"${System.getProperty("user.dir")}/src/main/resources/$id/partition-"
+    /* TODO: Need to consider when a worker gets multiple requests */
+    val baseDir = s"${System.getProperty("user.dir")}/src/main/resources/$id"
 
     for {
       (workerId, worker) <- workers
@@ -41,10 +42,7 @@ class ShuffleHandler(serverHost: String, serverPort: Int, id: Int) {
       try {
         client = new FileClient(worker.ip, worker.port, id)
         println(s"send partition from ${id} to ${workerId}")
-
-        val shufflePromise = Promise[Unit]()
-        client.requestShuffle(baseDir+workerId, shufflePromise)
-        Await.ready(shufflePromise.future, Duration.Inf)
+        client.shuffle(baseDir, workerId)
       } finally {
         if (client != null) {
           client.shutdown
