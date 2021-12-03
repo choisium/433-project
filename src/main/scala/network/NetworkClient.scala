@@ -171,7 +171,8 @@ class NetworkClient(host: String, port: Int) {
     shuffleHandler.shuffle(workers)
   }
 
-  def requestDone(): Unit = {
+  @tailrec
+  final def requestDone(): Unit = {
     logger.info("[requestDone] Notify shuffle done")
 
     val response = blockingStub.done(new DoneRequest(id))

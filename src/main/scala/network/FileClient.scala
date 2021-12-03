@@ -56,10 +56,12 @@ class FileClient(host: String, port: Int, id: Int) {
     val requestObserver = asyncStub.shuffle(responseObserver)
 
     try {
-      for (line <- Source.fromFile(filepath).getLines) {
+      val source = Source.fromFile(filepath)
+      for (line <- source.getLines) {
         val request = FileRequest(id = id, data = ByteString.copyFromUtf8(line+"\n"))
         requestObserver.onNext(request)
       }
+      source.close
     } catch {
       case e: RuntimeException => {
         // Cancel RPC
