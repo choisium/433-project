@@ -22,11 +22,18 @@ class Pivoter(filepath: String, rangeNum: Int, subRangeNum: Int, keyLength: Int)
     val printableChars = (' ' to '~').toSeq
 
     def getKeyMap(): Map[String, Int] = {
+        val sources = for {
+            filename <- (1 to rangeNum).map(r => filepath+r)
+        } yield Source.fromFile(filename)
+
         val keys = for {
             filename <- (1 to rangeNum).map(r => filepath+r)
-            line <- Source.fromFile(filename).getLines
+            source <- sources
+            line <- source.getLines
             if (!line.isEmpty)
         } yield line.take(10)
+
+        sources.foreach(source => source.close)
 
         for {
             (key, keyList) <- keys.toSeq.groupBy(key => key.take(keyLength))

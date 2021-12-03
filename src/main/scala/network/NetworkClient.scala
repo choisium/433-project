@@ -85,10 +85,12 @@ class NetworkClient(host: String, port: Int) {
 
     try {
       val samplePath = baseDirPath + "/sample"
-      for (line <- Source.fromFile(samplePath).getLines) {
+      val source = Source.fromFile(samplePath)
+      for (line <- source.getLines) {
         val request = SampleRequest(id = id, data = ByteString.copyFromUtf8(line+"\n"))
         requestObserver.onNext(request)
       }
+      source.close
     } catch {
       case e: RuntimeException => {
         // Cancel RPC
