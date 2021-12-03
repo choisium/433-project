@@ -18,32 +18,6 @@ import message.common.StatusEnum
 import message.shuffle.{ShuffleGrpc, FileRequest, FileResponse}
 
 
-class ShuffleImpl() extends ShuffleGrpc.Shuffle {
-  val logger: Logger = Logger.getLogger(classOf[ShuffleImpl].getName)
-
-  override def dataRoute(responseObserver: StreamObserver[FileResponse]): StreamObserver[FileRequest] =
-    new StreamObserver[FileRequest] {
-      val filepath = "/Users/choisium/Development/433-project/src/main/resources/result.txt"
-      val writer = new BufferedOutputStream(new FileOutputStream(filepath))
-
-
-      override def onNext(request: FileRequest): Unit = {
-        request.data.writeTo(writer)
-        writer.flush
-      }
-
-      override def onError(t: Throwable): Unit = {
-        logger.warning("DataRoute cancelled")
-      }
-
-      override def onCompleted(): Unit = {
-        writer.close
-        responseObserver.onNext(FileResponse(StatusEnum.SUCCESS, "Done"))
-        responseObserver.onCompleted
-      }
-    }
-}
-
 class FileServer(executionContext: ExecutionContext, port: Int) { self =>
   val logger: Logger = Logger.getLogger(classOf[FileServer].getName)
   var server: Server = null
@@ -71,5 +45,31 @@ class FileServer(executionContext: ExecutionContext, port: Int) { self =>
     if (server != null) {
       server.awaitTermination()
     }
+  }
+
+  class ShuffleImpl() extends ShuffleGrpc.Shuffle {
+    val logger: Logger = Logger.getLogger(classOf[ShuffleImpl].getName)
+
+    override def shuffle(responseObserver: StreamObserver[FileResponse]): StreamObserver[FileRequest] =
+      new StreamObserver[FileRequest] {
+        val filepath = "/Users/choisium/Development/433-project/src/main/resources/result.txt"
+        val writer = new BufferedOutputStream(new FileOutputStream(filepath))
+
+
+        override def onNext(request: FileRequest): Unit = {
+          request.data.writeTo(writer)
+          writer.flush
+        }
+
+        override def onError(t: Throwable): Unit = {
+          logger.warning("DataRoute cancelled")
+        }
+
+        override def onCompleted(): Unit = {
+          writer.close
+          responseObserver.onNext(FileResponse(StatusEnum.SUCCESS))
+          responseObserver.onCompleted
+        }
+      }
   }
 }

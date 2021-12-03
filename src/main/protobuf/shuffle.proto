@@ -6,15 +6,14 @@ import "common.proto";
 
 // Worker sends this to another worker
 message FileRequest {
-  bytes data = 2;
+  bytes data = 1;
 }
 
 // Worker sends this to requested worker to notify receiving is done
 message FileResponse {
   StatusEnum status = 1;
-  string message = 2;
 }
 
 service Shuffle {
-  rpc DataRoute(stream FileRequest) returns (FileResponse) {}
+  rpc Shuffle(stream FileRequest) returns (FileResponse) {}
 }

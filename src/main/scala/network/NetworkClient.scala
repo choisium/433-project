@@ -33,6 +33,8 @@ class NetworkClient(host: String, port: Int) {
   val blockingStub = ConnectionGrpc.blockingStub(channel)
   val asyncStub = ConnectionGrpc.stub(channel)
 
+  var shuffleHandler: ShuffleHandler = null;
+
   var id: Int = -1
   lazy val baseDirPath = {
     assert (id > 0)
@@ -45,11 +47,16 @@ class NetworkClient(host: String, port: Int) {
     if (id > 0) {
       val response = blockingStub.terminate(new TerminateRequest(id))
     }
+    if (shuffleHandler != null) {
+      shuffleHandler.serverStop
+    }
     channel.shutdown.awaitTermination(5, TimeUnit.SECONDS)
   }
 
-  final def requestConnect(ip: String, port: Int): Unit = {
-    val response = blockingStub.connect(new ConnectRequest(ip, port))
+  final def requestConnect(host: String, port: Int): Unit = {
+    logger.info("[requestConnect] try to connect to master")
+    val response = blockingStub.connect(new ConnectRequest(host, port))
+    shuffleHandler = new ShuffleHandler(host, port)
     id = response.id
   }
 
@@ -128,16 +135,26 @@ class NetworkClient(host: String, port: Int) {
     }
   }
 
-  def requestSort(): Unit = {
-    logger.info("[RequestSort] Notify sort done and shuffling ready")
+  final def sort(): Unit = {
+    logger.info("[sort] start Sort")
+    // Do sort
+
+    // Start shuffle server
+    logger.info("[sort] start ShuffleHandler Server")
+    shuffleHandler.serverStart
+  }
+
+  @tailrec
+  final def requestSort(): Unit = {
+    logger.info("[requestSort] Notify sort done and shuffling ready")
 
     val response = blockingStub.sort(new SortRequest(id))
     response.status match {
       case StatusEnum.SUCCESS => {
-        logger.info("[RequestSort] Other workers are shuffling ready too")
+        logger.info("[requestSort] Other workers are shuffling ready too")
       }
       case StatusEnum.FAILED => {
-        logger.info("[RequestSort] RequestSort failed.")
+        logger.info("[requestSort] RequestSort failed.")
         throw new WorkerFailedException
       }
       case _ => {
@@ -146,5 +163,10 @@ class NetworkClient(host: String, port: Int) {
         requestSort
       }
     }
+  }
+
+  final def shuffle(): Unit = {
+    logger.info("[shuffle] start Shuffle")
+    shuffleHandler.shuffle(id, workers)
   }
 }

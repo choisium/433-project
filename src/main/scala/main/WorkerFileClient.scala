@@ -9,7 +9,7 @@ object WorkerClient {
     val filepath = "/Users/choisium/Development/433-project/src/main/resources/result.txt"
 
     try {
-      client.dataRoute(filepath)
+      client.requestShuffle(filepath)
     } finally {
       client.shutdown
     }

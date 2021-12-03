@@ -95,7 +95,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
 
   def tryPivot(): Unit = {
     if (checkAllWorkerStatus(CONNECTED, SAMPLED)) {
-      logger.info(s"[TryPivot]: All workers sent sample. Start pivot.")
+      logger.info(s"[tryPivot]: All workers sent sample. Start pivot.")
 
       val filepath = baseDirPath + "/sample"
 
@@ -114,11 +114,11 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
       f.onComplete {
         case Success(_) => {
           state = PIVOTED
-          logger.info("[Pivot] Pivot done successfully\n")
+          logger.info("[tryPivot] Pivot done successfully\n")
         }
         case Failure(t) => {
           state = FAILED
-          logger.info("[Pivot] Pivot failed: " + t.getMessage)
+          logger.info("[tryPivot] Pivot failed: " + t.getMessage)
         }
       }
     }
@@ -157,7 +157,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
           override def onCompleted(): Unit = {}
         }
       } else {
-        logger.info("[Sample]: Worker tries to send sample")
+        logger.info("[sample]: Worker tries to send sample")
         new StreamObserver[SampleRequest] {
           val filepath = baseDirPath + "/sample"
           var writer: BufferedOutputStream = null
@@ -173,12 +173,12 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
           }
 
           override def onError(t: Throwable): Unit = {
-            logger.warning(s"[Sample]: Worker $workerId failed to send sample: ${Status.fromThrowable(t)}")
+            logger.warning(s"[sample]: Worker $workerId failed to send sample: ${Status.fromThrowable(t)}")
             throw t
           }
 
           override def onCompleted(): Unit = {
-            logger.warning(s"[Sample]: Worker $workerId done sending sample")
+            logger.warning(s"[sample]: Worker $workerId done sending sample")
             writer.close
 
             responseObserver.onNext(new SampleResponse(status = StatusEnum.SUCCESS))
@@ -219,6 +219,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
       }
       if (checkAllWorkerStatus(PIVOTED, SORTED)) {
         state = SHUFFLING
+        logger.info("[sort] Worker sort done successfully\n")
       }
 
       state match {

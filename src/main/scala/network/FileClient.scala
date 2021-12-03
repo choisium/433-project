@@ -30,7 +30,7 @@ class FileClient(host: String, port: Int) {
     channel.shutdown().awaitTermination(5, TimeUnit.SECONDS)
   }
 
-  def dataRoute(filepath: String): Unit = {
+  def requestShuffle(filepath: String): Unit = {
     logger.info("*** DataRoute")
 
     val responseObserver = new StreamObserver[FileResponse]() {
@@ -47,7 +47,7 @@ class FileClient(host: String, port: Int) {
       }
     }
 
-    val requestObserver = asyncStub.dataRoute(responseObserver)
+    val requestObserver = asyncStub.shuffle(responseObserver)
 
     try {
       for (line <- Source.fromFile(filepath).getLines) {
