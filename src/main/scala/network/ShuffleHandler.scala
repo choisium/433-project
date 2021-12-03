@@ -1,6 +1,7 @@
 package network
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Promise, Await}
+import scala.concurrent.duration._
 import scala.collection.mutable.Map
 
 import java.util.logging.Logger
@@ -12,13 +13,13 @@ import message.shuffle._
 import common._
 import network.{FileServer, FileClient}
 
-class ShuffleHandler(serverHost: String, serverPort: Int) {
+class ShuffleHandler(serverHost: String, serverPort: Int, id: Int) {
   val logger = Logger.getLogger(classOf[ShuffleHandler].getName)
 
   var server: FileServer = null
 
   def serverStart(): Unit = {
-    server = new FileServer(ExecutionContext.global, serverPort)
+    server = new FileServer(ExecutionContext.global, serverPort, id)
     server.start
   }
 
@@ -29,17 +30,26 @@ class ShuffleHandler(serverHost: String, serverPort: Int) {
     server = null
   }
 
-  def shuffle(id: Int, workers: Map[Int, WorkerInfo]): Unit = {
-    val clients = for {
-      (workerId, worker) <- workers
-    } yield {
-      workerId -> new FileClient(worker.ip, worker.port)
-    }
+  def shuffle(workers: Map[Int, WorkerInfo]): Unit = {
+    val baseDir = s"${System.getProperty("user.dir")}/src/main/resources/$id/partition-"
 
-    try {
-      println(clients.size)
-    } finally {
-      clients.foreach{case (id, client) => client.shutdown}
+    for {
+      (workerId, worker) <- workers
+    } {
+      var client: FileClient = null
+
+      try {
+        client = new FileClient(worker.ip, worker.port, id)
+        println(s"send partition from ${id} to ${workerId}")
+
+        val shufflePromise = Promise[Unit]()
+        client.requestShuffle(baseDir+workerId, shufflePromise)
+        Await.ready(shufflePromise.future, Duration.Inf)
+      } finally {
+        if (client != null) {
+          client.shutdown
+        }
+      }
     }
   }
 }

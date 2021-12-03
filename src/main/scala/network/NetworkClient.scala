@@ -56,8 +56,8 @@ class NetworkClient(host: String, port: Int) {
   final def requestConnect(host: String, port: Int): Unit = {
     logger.info("[requestConnect] try to connect to master")
     val response = blockingStub.connect(new ConnectRequest(host, port))
-    shuffleHandler = new ShuffleHandler(host, port)
     id = response.id
+    shuffleHandler = new ShuffleHandler(host, port, id)
   }
 
   final def sample(): Unit = {
@@ -81,6 +81,7 @@ class NetworkClient(host: String, port: Int) {
 
       override def onError(t: Throwable): Unit = {
         logger.warning(s"[requestSample] Server response Failed: ${Status.fromThrowable(t)}")
+        samplePromise.failure(new WorkerFailedException)
       }
 
       override def onCompleted(): Unit = {
@@ -167,6 +168,6 @@ class NetworkClient(host: String, port: Int) {
 
   final def shuffle(): Unit = {
     logger.info("[shuffle] start Shuffle")
-    shuffleHandler.shuffle(id, workers)
+    shuffleHandler.shuffle(workers)
   }
 }

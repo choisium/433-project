@@ -178,7 +178,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
           }
 
           override def onCompleted(): Unit = {
-            logger.warning(s"[sample]: Worker $workerId done sending sample")
+            logger.info(s"[sample]: Worker $workerId done sending sample")
             writer.close
 
             responseObserver.onNext(new SampleResponse(status = StatusEnum.SUCCESS))
