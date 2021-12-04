@@ -15,7 +15,6 @@ import network.{FileServer, FileClient}
 
 class ShuffleHandler(serverHost: String, serverPort: Int, id: Int) {
   val logger = Logger.getLogger(classOf[ShuffleHandler].getName)
-
   var server: FileServer = null
 
   def serverStart(): Unit = {
@@ -31,17 +30,16 @@ class ShuffleHandler(serverHost: String, serverPort: Int, id: Int) {
   }
 
   def shuffle(workers: Map[Int, WorkerInfo]): Unit = {
-    /* TODO: Need to consider when a worker gets multiple requests */
     val baseDir = s"${System.getProperty("user.dir")}/src/main/resources/$id"
 
     for {
-      (workerId, worker) <- workers
+      workerId <- (id to workers.size) ++ (1 until id)
     } {
+      logger.info(s"[ShuffleHandler] Try to send partition from ${id} to ${workerId}")
       var client: FileClient = null
-
       try {
+        val worker = workers(workerId)
         client = new FileClient(worker.ip, worker.port, id)
-        println(s"send partition from ${id} to ${workerId}")
         client.shuffle(baseDir, workerId)
       } finally {
         if (client != null) {
