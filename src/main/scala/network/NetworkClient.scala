@@ -6,18 +6,24 @@
 
 package network
 
+import scala.io.Source
+import scala.collection.mutable.Map
+import scala.concurrent.{Promise}
+import scala.annotation.tailrec
+
 import com.google.protobuf.ByteString
 
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
+import java.io.File
 
 import io.grpc.{ManagedChannelBuilder, Status}
 import io.grpc.stub.StreamObserver
 
-import scala.io.Source
-
-import message.connection.ConnectionGrpc
+import message.common._
 import message.connection._
+import common._
+import sorting.Sampler
 
 
 class NetworkClient(host: String, port: Int) {
@@ -28,18 +34,97 @@ class NetworkClient(host: String, port: Int) {
   val asyncStub = ConnectionGrpc.stub(channel)
 
   var id: Int = -1
+  lazy val baseDirPath = {
+    assert (id > 0)
+    System.getProperty("user.dir") + "/src/main/resources/" + id
+  }
+  var workerNum: Int = -1
+  val workers = Map[Int, WorkerInfo]()
 
-  def shutdown: Unit = {
+  final def shutdown: Unit = {
     if (id > 0) {
       val response = blockingStub.terminate(new TerminateRequest(id))
-    } else {}
+    }
     channel.shutdown.awaitTermination(5, TimeUnit.SECONDS)
   }
 
-  def connect(ip: String, port: Int): Boolean = {
+  final def requestConnect(ip: String, port: Int): Unit = {
     val response = blockingStub.connect(new ConnectRequest(ip, port))
     id = response.id
-    logger.info("Connection result: " + response.success)
-    response.success
+  }
+
+  final def sample(): Unit = {
+    logger.info("[sample] start Sample")
+    /* TODO: Need to get input directory from user command */
+    val inputDirPath = baseDirPath + "/input"
+
+    Sampler.sample(inputDirPath, baseDirPath, 100)
+    assert (new File(baseDirPath + "/sample").isFile)
+  }
+
+  final def requestSample(samplePromise: Promise[Unit]): Unit = {
+    logger.info("[requestSample] Try to send sample")
+
+    val responseObserver = new StreamObserver[SampleResponse]() {
+      override def onNext(response: SampleResponse): Unit = {
+        if (response.status == StatusEnum.SUCCESS) {
+          samplePromise.success()
+        }
+      }
+
+      override def onError(t: Throwable): Unit = {
+        logger.warning(s"[requestSample] Server response Failed: ${Status.fromThrowable(t)}")
+      }
+
+      override def onCompleted(): Unit = {
+        logger.info("[requestSample] Done sending sample")
+      }
+    }
+
+    val requestObserver = asyncStub.sample(responseObserver)
+
+    try {
+      val samplePath = baseDirPath + "/sample"
+      val source = Source.fromFile(samplePath)
+      for (line <- source.getLines) {
+        val request = SampleRequest(id = id, data = ByteString.copyFromUtf8(line+"\n"))
+        requestObserver.onNext(request)
+      }
+      source.close
+    } catch {
+      case e: RuntimeException => {
+        // Cancel RPC
+        requestObserver.onError(e)
+        throw e
+      }
+    }
+
+    // Mark the end of requests
+    requestObserver.onCompleted()
+  }
+
+  @tailrec
+  final def requestPivot(): Unit = {
+    logger.info("[requestPivot] Try to get pivot")
+
+    val response = blockingStub.pivot(new PivotRequest(id))
+    response.status match {
+      case StatusEnum.SUCCESS => {
+        workerNum = response.workerNum
+        for (w <- response.workers) {
+          workers(w.id) = WorkerInfo.convertMessageToInfo(w)
+        }
+        assert (workers.size == workerNum)
+      }
+      case StatusEnum.FAILED => {
+        logger.info("[Pivot] Pivot failed.")
+        throw new PivotingFailedException
+      }
+      case _ => {
+        /* Wait 5 seconds and retry */
+        Thread.sleep(5 * 1000)
+        requestPivot
+      }
+    }
   }
 }

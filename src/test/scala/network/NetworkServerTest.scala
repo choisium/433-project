@@ -3,11 +3,11 @@ package network;
 import scala.concurrent.ExecutionContext
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll}
-import io.grpc.{Server, ServerBuilder, ManagedChannelBuilder, ManagedChannel}
+import io.grpc.{Server, ServerBuilder, ManagedChannelBuilder, ManagedChannel, StatusRuntimeException}
 
 import network.{NetworkServer}
 import message.connection.{ConnectionGrpc, ConnectRequest, ConnectResponse}
-
+import common._
 
 class MockNetworkClient() {
   // build mock client(channel)
@@ -35,7 +35,6 @@ class NetworkServerTest extends AnyFunSuite {
     try {
       val response = mockClient.blockingStub.connect(new ConnectRequest("localhost", 9001))
       assert (response.id == 1)
-      assert (response.success == true)
       assert (testServer.server.state == CONNECTED)
     } finally {
       mockClient.shutdown
@@ -54,10 +53,10 @@ class NetworkServerTest extends AnyFunSuite {
     try {
       val response1 = mockClient1.blockingStub.connect(new ConnectRequest("localhost", 9001))
       assert (response1.id == 1)
-      assert (response1.success == true)
       assert (testServer.server.state == CONNECTED)
-      val response2 = mockClient2.blockingStub.connect(new ConnectRequest("localhost", 9002))
-      assert (response2.success == false)
+      assertThrows[StatusRuntimeException] {
+        mockClient2.blockingStub.connect(new ConnectRequest("localhost", 9002))
+      }
     } finally {
       mockClient1.shutdown
       mockClient2.shutdown

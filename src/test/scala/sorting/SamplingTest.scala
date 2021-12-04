@@ -10,11 +10,12 @@ class SamplingTest extends AnyFunSuite {
 
     val sampleSize = 30;
     val projectPath: String = System.getProperty("user.dir");
+    val inputPath: String = projectPath + "/src/test/resources/worker/input"
     val workerPath: String = projectPath + "/src/test/resources/worker"
     val sampledFile = new File(workerPath + "/sample")
     val testSampledFile = new File(projectPath + "/src/test/resources/sorting/sample-test")
 
-    Sampler.sample(workerPath, sampleSize)
+    Sampler.sample(inputPath, workerPath, sampleSize)
     try {
       val isContentsEqual: Boolean = isContentsOfSampleAndTestFileEqual(workerPath + "/sample",
         projectPath + "/src/test/resources/sorting/sample-test", sampleSize)

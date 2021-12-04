@@ -14,7 +14,8 @@ import io.grpc.stub.StreamObserver;
 
 import scala.concurrent.ExecutionContext
 
-import message.shuffle.{ShuffleGrpc, FileRequest, FileResponse, FileStatus}
+import message.common.StatusEnum
+import message.shuffle.{ShuffleGrpc, FileRequest, FileResponse}
 
 
 class ShuffleImpl() extends ShuffleGrpc.Shuffle {
@@ -37,7 +38,7 @@ class ShuffleImpl() extends ShuffleGrpc.Shuffle {
 
       override def onCompleted(): Unit = {
         writer.close
-        responseObserver.onNext(FileResponse(FileStatus.SUCCESS, "Done"))
+        responseObserver.onNext(FileResponse(StatusEnum.SUCCESS, "Done"))
         responseObserver.onCompleted
       }
     }

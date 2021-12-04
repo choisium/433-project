@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package message;
 
+import "common.proto";
+
 // Worker sends this to master to connect
 message ConnectRequest {
   string ip = 1;     // worker file server's ip
@@ -10,8 +12,30 @@ message ConnectRequest {
 
 // Master responds whether the worker's request is success or not
 message ConnectResponse {
-  bool success = 1;  // true: connection success
-  int32 id = 2;      // positive if success is true
+  int32 id = 1;      // positive if success is true
+}
+
+// Worker sends this with sample data to master
+message SampleRequest {
+  int32 id = 1;
+  bytes data = 2;
+}
+
+// Master responds whether the worker's sample is received or not
+message SampleResponse {
+  StatusEnum status = 1;
+}
+
+// Worker sends this to master to get key ranges
+message PivotRequest {
+  int32 id = 1;
+}
+
+// Master send this to workers to send key ranges
+message PivotResponse {
+  StatusEnum status = 1;
+  int32 workerNum = 2;
+  repeated WorkerMessage workers = 3;
 }
 
 // Worker sends this to master to notify its termination
@@ -24,5 +48,7 @@ message TerminateResponse { }
 
 service Connection {
   rpc Connect(ConnectRequest) returns (ConnectResponse) {}
+  rpc Sample(stream SampleRequest) returns (SampleResponse) {}
+  rpc Pivot(PivotRequest) returns (PivotResponse) {}
   rpc Terminate(TerminateRequest) returns (TerminateResponse) {}
 }

@@ -4,11 +4,12 @@ import scala.concurrent.{ExecutionContext, Future}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.{BeforeAndAfterEach, BeforeAndAfterAll}
 import org.scalamock.scalatest.MockFactory
-import io.grpc.{Server, ServerBuilder, ManagedChannelBuilder}
+import io.grpc.{Server, ServerBuilder, ManagedChannelBuilder, StatusRuntimeException}
 
 import network.{NetworkServer, NetworkClient}
 import message.connection.ConnectionGrpc
 import message.connection._
+import common._
 
 class MockNetworkServer(requiredWorkerNum: Int) extends MockFactory {
   // build mock server
@@ -39,12 +40,12 @@ class NetworkClientTest extends AnyFunSuite with MockFactory {
 
     try {
       (mockServer.mockConnectionImpl.connect _).expects(ConnectRequest(ip = ip, port = port))
-        .returning(Future.successful(ConnectResponse(success = true, id = id)))
+        .returning(Future.successful(ConnectResponse(id = id)))
       (mockServer.mockConnectionImpl.terminate _).expects(TerminateRequest(id = id))
         .returning(Future.successful(TerminateResponse()))
 
-      val res = testClient.client.connect(ip, port)
-      assert(res == true)
+      testClient.client.requestConnect(ip, port)
+      assert(testClient.client.id == id)
     } finally {
       testClient.shutdown
       mockServer.shutdown
@@ -64,16 +65,18 @@ class NetworkClientTest extends AnyFunSuite with MockFactory {
 
     try {
       (mockServer.mockConnectionImpl.connect _).expects(ConnectRequest(ip = ip1, port = port1))
-        .returning(Future.successful(ConnectResponse(success = true, id = id1)))
+        .returning(Future.successful(ConnectResponse(id = id1)))
       (mockServer.mockConnectionImpl.connect _).expects(ConnectRequest(ip = ip1, port = port2))
-        .returning(Future.successful(ConnectResponse(success = false, id = -1)))
+        .returning(Future.failed(new InvalidStateException))
       (mockServer.mockConnectionImpl.terminate _).expects(TerminateRequest(id = id1))
         .returning(Future.successful(TerminateResponse()))
 
-      val res1 = testClient1.client.connect(ip1, port1)
-      assert(res1 == true)
-      val res2 = testClient2.client.connect(ip2, port2)
-      assert(res2 == false)
+      testClient1.client.requestConnect(ip1, port1)
+      assert(testClient1.client.id == id1)
+
+      assertThrows[StatusRuntimeException] {
+        testClient2.client.requestConnect(ip2, port2)
+      }
     } finally {
       testClient1.shutdown
       testClient2.shutdown

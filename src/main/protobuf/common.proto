@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package message;
+
+/* Need to include status field when
+   1. The request or response is stream(using asyncStub)
+   2. The response should be sent after all worker done
+      (for the purpose of barrier) */
+enum StatusEnum {
+  PENDING = 0;
+  IN_PROGRESS = 1;
+  SUCCESS = 2;
+  FAILED = 3;
+}
+
+message RangeMessage {
+  string lowerbound = 4;
+  string upperbound = 5;
+}
+
+message WorkerMessage {
+  int32 id = 1;
+  string ip = 2;
+  int32 port = 3;
+  RangeMessage keyRange = 4;
+  repeated RangeMessage subKeyRange = 5;
+}
