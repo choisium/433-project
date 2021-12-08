@@ -1,6 +1,7 @@
 package sorting
 
 import org.scalatest.funsuite.AnyFunSuite
+import sorting.Sorter.splitSingleInput
 import sorting.TestHelper.isContentsOfSampleAndTestFileEqual
 
 import java.io.File
@@ -9,10 +10,10 @@ class SortingTest extends AnyFunSuite {
   val projectPath: String = System.getProperty("user.dir")
 
   test("Partition single input") {
-    val inputPath: String = projectPath + "/src/test/resources/partition/worker/input/sample-input-1"
+    val inputPath: String = projectPath + "/src/test/resources/simple/worker/input/sample-input-1"
 
-    val workerPath: String = projectPath + "/src/test/resources/partition/worker"
-    val pivots = Map(1 -> Seq(" ", "1"), 2 -> Seq("2", "5"), 3 -> Seq("6", "9"))
+    val workerPath: String = projectPath + "/src/test/resources/simple/worker"
+    val pivots = Map(1 -> Tuple2(" ", "1"), 2 -> Tuple2("2", "5"), 3 -> Tuple2("6", "9"))
 
     val partitionPath1: String = workerPath + "/partition-1-1-unsorted"
     val partitionPath2: String = workerPath + "/partition-2-1-unsorted"
@@ -23,7 +24,7 @@ class SortingTest extends AnyFunSuite {
     val partitionResultPath3: String = workerPath + "/partition-result-single/partition-3-1-unsorted-test"
 
     try {
-      Sorter.splitSingleInput(inputPath, workerPath, pivots)
+      Sorter.splitSingleInput(inputPath, workerPath + "/partition-", "-1-unsorted", pivots)
 
       assert(isContentsOfSampleAndTestFileEqual(partitionResultPath1, partitionPath1, new File(partitionResultPath1).length.toInt))
       assert(isContentsOfSampleAndTestFileEqual(partitionResultPath2, partitionPath2, new File(partitionResultPath2).length.toInt))
@@ -35,10 +36,10 @@ class SortingTest extends AnyFunSuite {
   }
 
   test("Partition inputs") {
-    val inputPath: String = projectPath + "/src/test/resources/partition/worker/input"
+    val inputPath: String = projectPath + "/src/test/resources/simple/worker/input"
 
-    val workerPath: String = projectPath + "/src/test/resources/partition/worker"
-    val pivots = Map(1 -> Seq(" ", "1"), 2 -> Seq("2", "5"), 3 -> Seq("6", "9"))
+    val workerPath: String = projectPath + "/src/test/resources/simple/worker"
+    val pivots = Map(1 -> Tuple2(" ", "1"), 2 -> Tuple2("2", "5"), 3 -> Tuple2("6", "9"))
 
     val partitionPath1: String = workerPath + "/partition-1-1-unsorted"
     val partitionPath2: String = workerPath + "/partition-2-1-unsorted"

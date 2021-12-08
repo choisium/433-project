@@ -6,7 +6,6 @@ import scala.collection.immutable.ListMap
 import scala.io.Source
 
 object Sorter {
-
   // sort file-unsorted and write on file
   def sort(unsortedFilePath: String): Unit = {
     try {
@@ -38,14 +37,14 @@ object Sorter {
 
   // analyze input file and store each lines in partition-destWorkerId-##
   // Map[Int, (String, String)] **
-  def partition(inputPath: String, workerPath: String, pivots: Map[Int, Seq[String]]): Any = {
+  def partition(inputPath: String, workerPath: String, pivots: Map[Int, (String, String)]): Any = {
     val listOfInputFiles = getListOfFiles(inputPath)
     for (file <- listOfInputFiles) {
-      splitSingleInput(file.getPath, workerPath, pivots)
+      splitSingleInput(file.getPath, workerPath + "/partition-", "-1-unsorted", pivots)
     }
   }
 
-  def splitSingleInput(inputFile: String, workerPath: String, pivots: Map[Int, Seq[String]]): Any = {
+  def splitSingleInput(inputFile: String, splitTo: String, _pathTail: String, pivots: Map[Int, (String, String)]): Any = {
     try {
       val bufferedSourceForKeys = Source.fromFile(inputFile)
       val bufferedSource = Source.fromFile(inputFile)
@@ -53,8 +52,13 @@ object Sorter {
 
       for (line <- bufferedSource.getLines.take(inputFile.length)) {
         val key = line.substring(0, 10)
-        val destWorker = whereToPut(key, pivots: Map[Int, Seq[String]])
-        val writePath: String = workerPath + "/partition-" + destWorker + "-1-unsorted"
+        val destWorker = whereToPut(key, pivots: Map[Int, (String, String)])
+
+        val pathTail: String = {
+          if (_pathTail == " ") destWorker
+          else _pathTail
+        }
+        val writePath: String = splitTo + destWorker + _pathTail
 
         writeOrCreateAndWrite(writePath, line + "\n")
       }
@@ -70,19 +74,19 @@ object Sorter {
     writer.write(content.getBytes)
   }
 
-  def whereToPut(key: String, ranges: Map[Int, Seq[String]]): String = {
+  def whereToPut(key: String, ranges: Map[Int, (String, String)]): String = {
     val properWorker = ranges.filter(range => isInRange(key.toArray, range._2))
 
     assert(properWorker.size == 1)
     properWorker.keys.head.toString
   }
 
-  def isInRange(key: Array[Char], range: Seq[String]): Boolean = {
+  def isInRange(key: Array[Char], range: (String, String)): Boolean = {
     @tailrec
-    def _isInRange(key: Array[Char], range: Seq[String]): Boolean = {
-      if (range.head.isEmpty) true
-      else if (key.head < range.head.head || key.head > range.tail.head.head) false
-      else _isInRange(key.tail, Seq(range.head.tail, range.tail.head.tail))
+    def _isInRange(key: Array[Char], range: (String, String)): Boolean = {
+      if (range._1.isEmpty) true
+      else if (key.head < range._1.head || key.head > range._2.head) false
+      else _isInRange(key.tail, (range._1.tail, range._2.tail))
     }
 
     _isInRange(key, range)
