@@ -100,6 +100,16 @@ object Sorter {
       List[File]()
     }
   }
+
+  def getListOfStageFiles(directoryPath: String, stage: String): List[File] = {
+    val dir = new File(directoryPath)
+    if (dir.exists && dir.isDirectory) {
+      val fileList = dir.listFiles
+      fileList.filter(file => file.isFile && file.getName.substring(0, stage.length).equals(stage)).toList
+    } else {
+      List[File]()
+    }
+  }
 }
 
 

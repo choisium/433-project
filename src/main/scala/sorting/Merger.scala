@@ -1,6 +1,6 @@
 package sorting
 
-import sorting.Sorter.{sort, splitSingleInput}
+import sorting.Sorter.{getListOfStageFiles, sort, splitSingleInput}
 
 import java.io.File
 import java.nio.file.{Files, Paths, StandardCopyOption}
@@ -23,17 +23,6 @@ object Merger {
   }
 
   def tagAsUnsorted(oldName: String): Boolean = Try(new File(oldName).renameTo(new File(oldName + "-unsorted"))).getOrElse(false)
-
-  def getListOfStageFiles(directoryPath: String, stage: String): List[File] = {
-    val dir = new File(directoryPath)
-    if (dir.exists && dir.isDirectory) {
-      val fileList = dir.listFiles
-      fileList.filter(file => file.isFile && file.getName.substring(0, stage.length).equals(stage)).toList
-    } else {
-      List[File]()
-    }
-  }
-
 
   // move partition-workerId-## files to each worker's shuffle directory with name of ~/shuffle-workerId-##
   // on network
