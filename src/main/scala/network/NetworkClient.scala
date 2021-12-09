@@ -33,6 +33,8 @@ class NetworkClient(host: String, port: Int) {
   val blockingStub = ConnectionGrpc.blockingStub(channel)
   val asyncStub = ConnectionGrpc.stub(channel)
 
+  var shuffleHandler: ShuffleHandler = null;
+
   var id: Int = -1
   lazy val baseDirPath = {
     assert (id > 0)
@@ -45,12 +47,17 @@ class NetworkClient(host: String, port: Int) {
     if (id > 0) {
       val response = blockingStub.terminate(new TerminateRequest(id))
     }
+    if (shuffleHandler != null) {
+      shuffleHandler.serverStop
+    }
     channel.shutdown.awaitTermination(5, TimeUnit.SECONDS)
   }
 
-  final def requestConnect(ip: String, port: Int): Unit = {
-    val response = blockingStub.connect(new ConnectRequest(ip, port))
+  final def requestConnect(host: String, port: Int): Unit = {
+    logger.info("[requestConnect] try to connect to master")
+    val response = blockingStub.connect(new ConnectRequest(host, port))
     id = response.id
+    shuffleHandler = new ShuffleHandler(host, port, id)
   }
 
   final def sample(): Unit = {
@@ -74,6 +81,7 @@ class NetworkClient(host: String, port: Int) {
 
       override def onError(t: Throwable): Unit = {
         logger.warning(s"[requestSample] Server response Failed: ${Status.fromThrowable(t)}")
+        samplePromise.failure(new WorkerFailedException)
       }
 
       override def onCompleted(): Unit = {
@@ -117,13 +125,69 @@ class NetworkClient(host: String, port: Int) {
         assert (workers.size == workerNum)
       }
       case StatusEnum.FAILED => {
-        logger.info("[Pivot] Pivot failed.")
-        throw new PivotingFailedException
+        logger.info("[requestPivot] Pivot failed.")
+        throw new WorkerFailedException
       }
       case _ => {
         /* Wait 5 seconds and retry */
         Thread.sleep(5 * 1000)
         requestPivot
+      }
+    }
+  }
+
+  final def sort(): Unit = {
+    logger.info("[sort] start Sort")
+    // Do sort
+
+    // Start shuffle server
+    logger.info("[sort] start ShuffleHandler Server")
+    shuffleHandler.serverStart
+  }
+
+  @tailrec
+  final def requestSort(): Unit = {
+    logger.info("[requestSort] Notify sort done and shuffling ready")
+
+    val response = blockingStub.sort(new SortRequest(id))
+    response.status match {
+      case StatusEnum.SUCCESS => {
+        logger.info("[requestSort] Other workers are shuffling ready too")
+      }
+      case StatusEnum.FAILED => {
+        logger.info("[requestSort] RequestSort failed.")
+        throw new WorkerFailedException
+      }
+      case _ => {
+        /* Wait 5 seconds and retry */
+        Thread.sleep(5 * 1000)
+        requestSort
+      }
+    }
+  }
+
+  final def shuffle(): Unit = {
+    logger.info("[shuffle] start Shuffle")
+    shuffleHandler.shuffle(workers)
+  }
+
+  @tailrec
+  final def requestDone(): Unit = {
+    logger.info("[requestDone] Notify shuffle done")
+
+    val response = blockingStub.done(new DoneRequest(id))
+    response.status match {
+      case StatusEnum.SUCCESS => {
+        logger.info("[requestDone] Other workers done shuffling too")
+      }
+      case StatusEnum.FAILED => {
+        logger.info("[requestDone] RequestDone failed.")
+        throw new WorkerFailedException
+      }
+      case _ => {
+        /* Wait 5 seconds and retry */
+        Thread.sleep(5 * 1000)
+        requestDone
       }
     }
   }

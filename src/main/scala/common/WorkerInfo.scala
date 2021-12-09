@@ -2,12 +2,23 @@ package common
 
 import message.common.{WorkerMessage, RangeMessage}
 
+
+// State case objects
+sealed trait MasterState
+case object MASTERINIT extends MasterState    // Initial state
+case object CONNECTED extends MasterState     // When all workers are connnected
+case object PIVOTED extends MasterState       // When pivoting done
+case object SHUFFLING extends MasterState        // When all workers are sorted(in a worker)
+case object TERMINATE extends MasterState     // When all workers are terminated
+case object FAILED extends MasterState        // Failed state
+
 sealed trait WorkerState
-case object WORKERINIT extends WorkerState
-case object SAMPLED extends WorkerState
-case object PARTITIONED extends WorkerState
-case object SHUFFLED extends WorkerState
-case object DONE extends WorkerState
+case object WORKERINIT extends WorkerState    // Initial state
+case object SAMPLED extends WorkerState       // When sample done
+case object SORTED extends WorkerState   // When sort and partition done
+case object SHUFFLED extends WorkerState      // When all partitioned files are sent
+case object DONE extends WorkerState          // When merge done
+
 
 class WorkerInfo(val id: Int, val ip: String, val port: Int) {
   type Range = (String, String)

@@ -38,6 +38,24 @@ message PivotResponse {
   repeated WorkerMessage workers = 3;
 }
 
+// Worker sends this to master to notify sort is done
+message SortRequest {
+  int32 id = 1;
+}
+
+// Master send this to workers when all workers sent SortRequest
+message SortResponse {
+  StatusEnum status = 1;
+}
+
+message DoneRequest {
+  int32 id = 1;
+}
+
+message DoneResponse {
+  StatusEnum status = 1;
+}
+
 // Worker sends this to master to notify its termination
 message TerminateRequest {
   int32 id = 1;
@@ -50,5 +68,7 @@ service Connection {
   rpc Connect(ConnectRequest) returns (ConnectResponse) {}
   rpc Sample(stream SampleRequest) returns (SampleResponse) {}
   rpc Pivot(PivotRequest) returns (PivotResponse) {}
+  rpc Sort(SortRequest) returns (SortResponse) {}
+  rpc Done(DoneRequest) returns (DoneResponse) {}
   rpc Terminate(TerminateRequest) returns (TerminateResponse) {}
 }
