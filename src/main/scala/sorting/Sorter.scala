@@ -29,6 +29,7 @@ object Sorter {
         writeOrCreateAndWrite(unsortedFilePath.slice(0, unsortedFilePath.length - 9), line + "\n")
         bufferedSource.close
       }
+      new File(unsortedFilePath).delete
 
     } catch {
       case ex: Exception => println(ex)
@@ -55,7 +56,7 @@ object Sorter {
         val destWorker = whereToPut(key, pivots: Map[Int, (String, String)])
 
         val pathTail: String = {
-          if (_pathTail == " ") destWorker
+          if (_pathTail == "") destWorker
           else _pathTail
         }
         val writePath: String = splitTo + destWorker + _pathTail
