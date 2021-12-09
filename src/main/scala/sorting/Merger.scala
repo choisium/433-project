@@ -10,11 +10,11 @@ object Merger {
 
   // split and merge ~/shuffle-workerId-## files with subRanges (unsorted)
   // merge shuffled files into output-##
-  def merge(workerPath: String, subRanges: Seq[(String, String)]): Any = {
+  def merge(workerPath: String, outputPath: String, subRanges: Seq[(String, String)]): Any = {
     val workerDir = new File(workerPath)
     val listOfInputFiles = getListOfStageFiles(workerPath, "shuffle-" + workerDir.getName)
     for (file <- listOfInputFiles) {
-      splitSingleInput(file.getPath, workerPath + "/output/output-", "", Iterator.from(0).zip(subRanges).toMap)
+      splitSingleInput(file.getPath, outputPath + "/output-", "", Iterator.from(0).zip(subRanges).toMap)
     }
   }
 

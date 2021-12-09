@@ -20,6 +20,7 @@ class MergingTest extends AnyFunSuite {
    */
   test("Merge files") {
     val workerPath: String = projectPath + "/src/test/resources/simple/1"
+    val outputPath: String = workerPath + "/output"
     val mergeResultPath: String = workerPath + "/../results/shuffle-result"
 
     val mergePath0 = workerPath + "/output/output-0"
@@ -34,7 +35,7 @@ class MergingTest extends AnyFunSuite {
     val subRanges = Seq(Tuple2(" ", "3"), Tuple2("4", "7"), Tuple2("8", "9"))
 
     try {
-      Merger.merge(workerPath, subRanges)
+      Merger.merge(workerPath, outputPath, subRanges)
       assert(isContentsOfSampleAndTestFileEqual(mergeResultPath0, mergePath0, new File(mergeResultPath0).length.toInt))
       assert(isContentsOfSampleAndTestFileEqual(mergeResultPath1, mergePath1, new File(mergeResultPath1).length.toInt))
       assert(isContentsOfSampleAndTestFileEqual(mergeResultPath2, mergePath2, new File(mergeResultPath2).length.toInt))
