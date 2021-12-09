@@ -8,13 +8,20 @@ import network.NetworkClient
 
 object Worker {
   def main(args: Array[String]): Unit = {
-    require(args.length == 2, "Usage: worker [server ip] [server port]")
+    require(args.length >= 2, "Usage: worker [server ip] [server port]")
+
+    var fileServerHost = "localhost"
+    var fileServerPort = 9000
+    if (args.length == 4) {
+      fileServerHost = args(2)
+      fileServerPort = args(3).toInt
+    }
+
     val client = new NetworkClient(args(0), args(1).toInt)
 
     try {
       // Send ConnectRequest
-      val res = client.requestConnect("localhost", 5001)
-      println("connect success")
+      client.requestConnect(fileServerHost, fileServerPort)
 
       // Do Sampling
       client.sample
@@ -30,7 +37,18 @@ object Worker {
         println(id, w.keyRange, w.subKeyRange)
       }
 
-      Thread.sleep(10 * 1000)
+      // Do Sorting
+      client.sort
+
+      // Send SortRequest
+      client.requestSort
+      println("SortRequest done. Shuffling start.")
+
+      // Do Shuffle
+      client.shuffle
+
+      // Send DoneRequest
+      client.requestDone
     } finally {
       client.shutdown
     }

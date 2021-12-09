@@ -25,16 +25,6 @@ import common._
 import sorting.Pivoter
 
 
-// State case objects
-sealed trait MasterState
-case object MASTERINIT extends MasterState
-case object CONNECTED extends MasterState
-case object PIVOTED extends MasterState
-case object SORTED extends MasterState
-case object TERMINATE extends MasterState
-case object FAILED extends MasterState
-
-
 class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorkerNum: Int) { self =>
   require(requiredWorkerNum > 0, "requiredWorkerNum should be positive")
 
@@ -96,11 +86,16 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
     (workers.map{case (id, worker) => WorkerInfo.convertToWorkerMessage(worker)}).toSeq
   }
 
+  def checkAllWorkerStatus(masterState: MasterState, workerState: WorkerState): Boolean = {
+    if (state == masterState &&
+        workers.size == requiredWorkerNum &&
+        workers.forall {case (_, worker) => worker.state == workerState}) true
+    else false
+  }
+
   def tryPivot(): Unit = {
-    if (state == CONNECTED &&
-      workers.size == requiredWorkerNum &&
-      workers.forall {case (_, worker) => worker.state == SAMPLED}) {
-      logger.info(s"[TryPivot]: All workers sent sample. Start pivot.")
+    if (checkAllWorkerStatus(CONNECTED, SAMPLED)) {
+      logger.info(s"[tryPivot]: All workers sent sample. Start pivot.")
 
       val filepath = baseDirPath + "/sample"
 
@@ -119,11 +114,11 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
       f.onComplete {
         case Success(_) => {
           state = PIVOTED
-          logger.info("[Pivot] Pivot done successfully\n")
+          logger.info("[tryPivot] Pivot done successfully\n")
         }
         case Failure(t) => {
           state = FAILED
-          logger.info("[Pivot] Pivot failed: " + t.getMessage)
+          logger.info("[tryPivot] Pivot failed: " + t.getMessage)
         }
       }
     }
@@ -162,7 +157,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
           override def onCompleted(): Unit = {}
         }
       } else {
-        logger.info("[Sample]: Worker tries to send sample")
+        logger.info("[sample]: Worker tries to send sample")
         new StreamObserver[SampleRequest] {
           val filepath = baseDirPath + "/sample"
           var writer: BufferedOutputStream = null
@@ -178,12 +173,12 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
           }
 
           override def onError(t: Throwable): Unit = {
-            logger.warning(s"[Sample]: Worker $workerId failed to send sample: ${Status.fromThrowable(t)}")
+            logger.warning(s"[sample]: Worker $workerId failed to send sample: ${Status.fromThrowable(t)}")
             throw t
           }
 
           override def onCompleted(): Unit = {
-            logger.warning(s"[Sample]: Worker $workerId done sending sample")
+            logger.info(s"[sample]: Worker $workerId done sending sample")
             writer.close
 
             responseObserver.onNext(new SampleResponse(status = StatusEnum.SUCCESS))
@@ -212,6 +207,56 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
       }
       case _ => {
         Future.successful(new PivotResponse(status = StatusEnum.IN_PROGRESS))
+      }
+    }
+
+    override def sort(request: SortRequest): Future[SortResponse] = {
+      assert (workers(request.id).state == SAMPLED || workers(request.id).state == SORTED)
+      if (workers(request.id).state == SAMPLED) {
+        workers.synchronized{
+          workers(request.id).state = SORTED
+        }
+      }
+      if (checkAllWorkerStatus(PIVOTED, SORTED)) {
+        state = SHUFFLING
+        logger.info("[sort] Worker sort done successfully\n")
+      }
+
+      state match {
+        case SHUFFLING => {
+          Future.successful(new SortResponse(StatusEnum.SUCCESS))
+        }
+        case FAILED => {
+          Future.failed(new InvalidStateException)
+        }
+        case _ => {
+          Future.successful(new SortResponse(StatusEnum.IN_PROGRESS))
+        }
+      }
+    }
+
+    override def done(request: DoneRequest): Future[DoneResponse] = {
+      assert (workers(request.id).state == SORTED || workers(request.id).state == SHUFFLED)
+      if (workers(request.id).state == SORTED) {
+        workers.synchronized{
+          workers(request.id).state = SHUFFLED
+        }
+      }
+      if (checkAllWorkerStatus(SHUFFLING, SHUFFLED)) {
+        state = TERMINATE
+        logger.info("[sort] Worker sort done successfully\n")
+      }
+
+      state match {
+        case TERMINATE => {
+          Future.successful(new DoneResponse(StatusEnum.SUCCESS))
+        }
+        case FAILED => {
+          Future.failed(new InvalidStateException)
+        }
+        case _ => {
+          Future.successful(new DoneResponse(StatusEnum.IN_PROGRESS))
+        }
       }
     }
 
