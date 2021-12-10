@@ -110,7 +110,7 @@ class NetworkClient(clientInfo: ClientInfo) {
 
     try {
       val sampleFiles = FileHandler.getListFilesWithPrefix(tempDir, "sample", "")
-      // assert(sampleFiles.length == 1)
+      assert(sampleFiles.length == 1)
       val source = Source.fromFile(sampleFiles(0))
       for (line <- source.getLines) {
         val request = SampleRequest(id = id, data = ByteString.copyFromUtf8(line+"\n"))
@@ -221,7 +221,7 @@ class NetworkClient(clientInfo: ClientInfo) {
 
     logger.info("[merge] start Merge")
     Merger.merge(tempDir, clientInfo.outputDir, workers(id).subKeyRange)
-    // FileHandler.getListOfFiles(clientInfo.outputDir).foreach(file => Merger.sortNotTagged(file.getPath))
+    FileHandler.getListOfFiles(clientInfo.outputDir).foreach(file => Merger.sortNotTagged(file.getPath))
     logger.info("[merge] done Merge")
   }
 }
