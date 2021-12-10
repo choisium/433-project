@@ -36,6 +36,28 @@ object Sorter {
     }
   }
 
+  def newSort(unsortedFilePath: String): Any = {
+    try {
+      val bufferedSource = Source.fromFile(unsortedFilePath)
+      val data: Seq[String] = bufferedSource.getLines.toSeq
+      val keys: Seq[String] = data.map(line => line.substring(0, 10))
+      val keyAndLineTuples: Seq[(String, String)] = keys.zip(data)
+
+      for (line <- keyAndLineTuples.sortWith(sortByKey)) {
+        writeOrCreateAndWrite(unsortedFilePath.slice(0, unsortedFilePath.length - 9), line._2 + "\n")
+      }
+      bufferedSource.close
+      new File(unsortedFilePath).delete
+
+    } catch {
+      case ex: Exception => println(ex)
+    }
+  }
+
+  def sortByKey(data1: (String, String), data2: (String, String)): Boolean = {
+    data1._1 < data2._1
+  }
+
   // analyze input file and store each lines in partition-destWorkerId-##
   // Map[Int, (String, String)] **
   def partition(inputPath: String, workerPath: String, pivots: Map[Int, (String, String)]): Any = {
@@ -73,6 +95,7 @@ object Sorter {
     val file = new File(filePath)
     val writer = new FileOutputStream(file, file.exists)
     writer.write(content.getBytes)
+    writer.close
   }
 
   def whereToPut(key: String, ranges: Map[Int, (String, String)]): String = {
