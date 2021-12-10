@@ -3,25 +3,23 @@ package network
 import scala.concurrent.{ExecutionContext, Promise, Await}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import network.NetworkClient
+import scala.util.control.NonFatal
+
+
+import java.net._
+import java.io.File
+
+import network.{NetworkClient, ClientInfo}
 
 
 object Worker {
   def main(args: Array[String]): Unit = {
-    require(args.length >= 2, "Usage: worker [server ip] [server port]")
-
-    var fileServerHost = "localhost"
-    var fileServerPort = 9000
-    if (args.length == 4) {
-      fileServerHost = args(2)
-      fileServerPort = args(3).toInt
-    }
-
-    val client = new NetworkClient(args(0), args(1).toInt)
+    val clientInfo = parseArguments(args)
+    val client = new NetworkClient(clientInfo)
 
     try {
       // Send ConnectRequest
-      client.requestConnect(fileServerHost, fileServerPort)
+      client.requestConnect
 
       // Do Sampling
       client.sample
@@ -42,7 +40,6 @@ object Worker {
 
       // Send SortRequest
       client.requestSort
-      println("SortRequest done. Shuffling start.")
 
       // Do Shuffle
       client.shuffle
@@ -55,9 +52,46 @@ object Worker {
 
       // Send TerminateRequest with SUCCESS
       client.shutdown(true)
+    } catch {
+      case NonFatal(e) => println(e)
     } finally {
       // Send TerminateRequest with FAILED
       client.shutdown(false)
     }
+  }
+
+  def parseArguments(args: Array[String]): ClientInfo = {
+    val usage = "Usage: worker [server ip:port] -I [input directory] -O [output directory]"
+    require (args.length >= 5, usage)
+
+    require (args(0).contains(":"), usage)
+    val masterInfo = args(0).split(":")
+    val masterHost = masterInfo(0)
+    val masterPort = masterInfo(1).toInt
+
+    require (args(1) == "-I", usage)
+    val inputDirs = args.slice(2, args.length - 2)
+    require(inputDirs.forall(dirPath => new File(dirPath).isDirectory), "Input directories must be directories")
+
+    require (args(args.length - 2) == "-O" || args(args.length - 3) == "-O", usage)
+    var outputDir: String = null
+    var fileServerPort: Int = 9000
+    if (args(args.length - 2) == "-O") {
+      outputDir = args(args.length - 1)
+    } else {
+      outputDir = args(args.length - 2)
+      fileServerPort = args.length - 1
+    }
+
+    val dir = new File(outputDir)
+    if (!dir.exists) {
+      dir.mkdir()
+    }
+
+    require(dir.isDirectory, "Output directory must be a directory")
+
+    val fileServerHost = InetAddress.getLocalHost.getHostAddress
+
+    new ClientInfo(masterHost, masterPort, inputDirs, outputDir, fileServerHost, fileServerPort)
   }
 }

@@ -16,6 +16,12 @@ message FileResponse {
   StatusEnum status = 1;
 }
 
+message SimpleRequest {}
+message SimpleResponse {
+  bool status = 1;
+}
+
 service Shuffle {
+  rpc test (SimpleRequest) returns (SimpleResponse) {}
   rpc Shuffle(stream FileRequest) returns (FileResponse) {}
 }

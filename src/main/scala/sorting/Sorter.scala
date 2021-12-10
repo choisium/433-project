@@ -4,6 +4,7 @@ import java.io.{BufferedReader, File, FileOutputStream, FileReader}
 import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
 import scala.io.Source
+import common.FileHandler
 
 object Sorter {
   // sort file-unsorted and write on file
@@ -38,9 +39,11 @@ object Sorter {
 
   // analyze input file and store each lines in partition-destWorkerId-##
   // Map[Int, (String, String)] **
-  def partition(inputPath: String, workerPath: String, pivots: Map[Int, (String, String)]): Any = {
-    val listOfInputFiles = getListOfFiles(inputPath)
-    for (file <- listOfInputFiles) {
+  def partition(inputPaths: Seq[String], workerPath: String, pivots: Map[Int, (String, String)]): Any = {
+    for {
+      inputPath <- inputPaths
+      file <- getListOfFiles(inputPath)
+    } {
       splitSingleInput(file.getPath, workerPath + "/partition-", "-1-unsorted", pivots)
     }
   }
@@ -73,6 +76,7 @@ object Sorter {
     val file = new File(filePath)
     val writer = new FileOutputStream(file, file.exists)
     writer.write(content.getBytes)
+    writer.close
   }
 
   def whereToPut(key: String, ranges: Map[Int, (String, String)]): String = {

@@ -15,6 +15,7 @@ import scala.util.{Success, Failure}
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
 import java.io.{OutputStream, BufferedOutputStream, FileOutputStream, File}
+import java.net._
 
 import io.grpc.{Server, ServerBuilder, Status}
 import io.grpc.stub.StreamObserver;
@@ -37,43 +38,35 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
   val baseDirPath = System.getProperty("user.dir") + "/src/main/resources/master"
 
   val pivotPromise = Promise[PivotResponse]()
-
-  def createBaseDir(): Unit = {
-    val baseDir = new File(baseDirPath)
-    if (!baseDir.exists) {
-      baseDir.mkdir  // need to handle exception
-    }
-    assert(baseDir.exists, "after create base directory")
-  }
-
-  def deleteFilesInBaseDir(): Unit = {
-    val baseDir = new File(baseDirPath)
-    for (file <- baseDir.listFiles) {
-      file.delete
-    }
-    assert(baseDir.exists && baseDir.listFiles.length == 0)
-  }
+  var tempDir: String = null
 
   def start(): Unit = {
-    createBaseDir
+    /* Start server */
     server = ServerBuilder.forPort(port)
       .addService(ConnectionGrpc.bindService(new ConnectionImpl, executionContext))
       .build
       .start
     logger.info("Server started, listening on " + port)
+    println(s"${InetAddress.getLocalHost.getHostAddress}:${port}")
     sys.addShutdownHook {
-      System.err.println("*** shutting down gRPC server since JVM is shutting down")
+      logger.info("Shutting down gRPC server since JVM is shutting down")
       self.stop()
-      System.err.println("*** server shut down")
+      logger.info("Server shut down")
     }
 
+    /* Create temporary directory */
+    if (tempDir == null) {
+      tempDir = FileHandler.createDir("blue-master")
+    }
   }
 
   def stop(): Unit = {
     if (server != null) {
       server.shutdown.awaitTermination(5, TimeUnit.SECONDS)
     }
-    deleteFilesInBaseDir
+    if (tempDir != null) {
+      FileHandler.deleteDir(tempDir)
+    }
   }
 
   def blockUntilShutdown(): Unit = {
@@ -97,10 +90,8 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
     if (checkAllWorkerStatus(CONNECTED, SAMPLED)) {
       logger.info(s"[tryPivot]: All workers sent sample. Start pivot.")
 
-      val filepath = baseDirPath + "/sample"
-
       val f = Future {
-        val pivot = new Pivoter(filepath, requiredWorkerNum, requiredWorkerNum, 1);
+        val pivot = new Pivoter(tempDir, requiredWorkerNum, requiredWorkerNum, 1);
         val ranges = pivot.run
         workers.synchronized{
           for ((id, worker) <- workers) {
@@ -159,14 +150,14 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
       } else {
         logger.info("[sample]: Worker tries to send sample")
         new StreamObserver[SampleRequest] {
-          val filepath = baseDirPath + "/sample"
           var writer: BufferedOutputStream = null
           var workerId: Int = -1
 
           override def onNext(request: SampleRequest): Unit = {
             workerId = request.id
             if (writer == null) {
-              writer = new BufferedOutputStream(new FileOutputStream(filepath + request.id))
+              val file = FileHandler.createFile(tempDir, s"sample-${request.id}-", "")
+              writer = new BufferedOutputStream(new FileOutputStream(file))
             }
             request.data.writeTo(writer)
             writer.flush
@@ -279,6 +270,8 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
           workers(request.id).state = DONE
           if (checkAllWorkerStatus(MERGING, DONE)) {
             logger.info(s"[Terminate]: All workers done")
+            val workerList = workers.map{case (workerId, worker) => worker.ip}.mkString(" ")
+            println(workerList)
             state = SUCCESS
             stop
           }
