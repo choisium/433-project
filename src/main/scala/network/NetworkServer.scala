@@ -105,7 +105,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
       f.onComplete {
         case Success(_) => {
           state = PIVOTED
-          logger.info("[tryPivot] Pivot done successfully\n")
+          logger.info("[tryPivot] Pivot done successfully")
         }
         case Failure(t) => {
           state = FAILED
@@ -235,7 +235,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
       }
       if (checkAllWorkerStatus(SHUFFLING, SHUFFLED)) {
         state = MERGING
-        logger.info("[sort] Worker sort done successfully\n")
+        logger.info("[sort] Worker sort done successfully")
       }
 
       state match {
