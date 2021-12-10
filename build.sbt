@@ -1,10 +1,29 @@
-lazy val root = (project in file(".")).
+ThisBuild / organization := "teamblue"
+ThisBuild / scalaVersion := "2.13.6"
+
+// lazy val master = (project in file(".")).
+//   settings(
+//     name := "master",
+//     assembly / mainClass := Some("network.Master"),
+//     assembly / assemblyJarName := "master.jar",
+//     /* Netty deduplicate error -  https://github.com/sbt/sbt-assembly/issues/362 */
+//     assembly / assemblyMergeStrategy := {
+//       case PathList("META-INF", "MANIFEST.MF") => MergeStrategy.discard
+//       case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.first
+//       case x => MergeStrategy.first
+//     } 
+//   )
+
+lazy val worker = (project in file(".")).
   settings(
-    inThisBuild(List(
-      organization := "com.example",
-      scalaVersion := "2.13.6"
-    )),
-    name := "scalatest-example"
+    name := "worker",
+    assembly / mainClass := Some("network.Worker"),
+    assembly / assemblyJarName := "worker.jar",
+    assembly / assemblyMergeStrategy := {
+      case PathList("META-INF", "MANIFEST.MF") => MergeStrategy.discard
+      case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.first
+      case x => MergeStrategy.first
+    }
   )
 
 Compile / PB.targets := Seq(
