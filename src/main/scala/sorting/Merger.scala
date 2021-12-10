@@ -32,7 +32,7 @@ object Merger {
     val listOfPartitionedFiles = getListOfStageFiles(workerPath, "partition")
     for (file <- listOfPartitionedFiles) {
       // under 10 workers exists
-      val workerId = file.getPath.substring(0, 11).takeRight(1)
+      val workerId = file.getPath.split("-")(1).toInt
       val path = Files.move(
         Paths.get(file.getPath),
         Paths.get(workerPath + workerId + "/shuffle-" + workerId + "-1"),

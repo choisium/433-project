@@ -48,17 +48,21 @@ message SortResponse {
   StatusEnum status = 1;
 }
 
-message DoneRequest {
+// Worker sends this to master to notify shuffle is done
+message MergeRequest {
   int32 id = 1;
 }
 
-message DoneResponse {
+// Master send this to workers when all workers sent MergeRequest
+message MergeResponse {
   StatusEnum status = 1;
 }
 
 // Worker sends this to master to notify its termination
+// If worker terminates since merge done, then status is SUCCESS
 message TerminateRequest {
   int32 id = 1;
+  StatusEnum status = 2;
 }
 
 // Master responds to worker
@@ -69,6 +73,6 @@ service Connection {
   rpc Sample(stream SampleRequest) returns (SampleResponse) {}
   rpc Pivot(PivotRequest) returns (PivotResponse) {}
   rpc Sort(SortRequest) returns (SortResponse) {}
-  rpc Done(DoneRequest) returns (DoneResponse) {}
+  rpc Merge(MergeRequest) returns (MergeResponse) {}
   rpc Terminate(TerminateRequest) returns (TerminateResponse) {}
 }

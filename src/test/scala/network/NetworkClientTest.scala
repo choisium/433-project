@@ -1,4 +1,4 @@
-package network;
+package network
 
 import scala.concurrent.{ExecutionContext, Future}
 import org.scalatest.funsuite.AnyFunSuite

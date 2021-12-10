@@ -62,7 +62,7 @@ class FileServer(executionContext: ExecutionContext, port: Int, id: Int) { self 
           partitionId = request.partitionId
           if (writer == null) {
             logger.info(s"[FileServer]: getting from $senderId with partition $partitionId")
-            writer = new BufferedOutputStream(new FileOutputStream(filepath + senderId + "-" + partitionId))
+            writer = new BufferedOutputStream(new FileOutputStream(filepath + senderId + "-" + partitionId + "-unsorted"))
           }
           request.data.writeTo(writer)
           writer.flush

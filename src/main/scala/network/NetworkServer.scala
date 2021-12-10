@@ -235,7 +235,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
       }
     }
 
-    override def done(request: DoneRequest): Future[DoneResponse] = {
+    override def merge(request: MergeRequest): Future[MergeResponse] = {
       assert (workers(request.id).state == SORTED || workers(request.id).state == SHUFFLED)
       if (workers(request.id).state == SORTED) {
         workers.synchronized{
@@ -243,19 +243,19 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
         }
       }
       if (checkAllWorkerStatus(SHUFFLING, SHUFFLED)) {
-        state = TERMINATE
+        state = MERGING
         logger.info("[sort] Worker sort done successfully\n")
       }
 
       state match {
-        case TERMINATE => {
-          Future.successful(new DoneResponse(StatusEnum.SUCCESS))
+        case MERGING => {
+          Future.successful(new MergeResponse(StatusEnum.SUCCESS))
         }
         case FAILED => {
           Future.failed(new InvalidStateException)
         }
         case _ => {
-          Future.successful(new DoneResponse(StatusEnum.IN_PROGRESS))
+          Future.successful(new MergeResponse(StatusEnum.IN_PROGRESS))
         }
       }
     }
@@ -263,15 +263,29 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
     override def terminate(request: TerminateRequest): Future[TerminateResponse] = {
       logger.info(s"[Terminate]: Worker ${request.id} tries to terminate")
 
-      workers.synchronized {
-        val worker = workers.remove(request.id)
-        if (state != MASTERINIT && workers.size == 0) {
-          logger.info(s"[Terminate]: All workers terminated")
-          state = TERMINATE
-          stop
+      if (state == FAILED || request.status != StatusEnum.SUCCESS) {
+        state = FAILED
+        workers.synchronized {
+          val worker = workers.remove(request.id)
+          val checkAllWorkerTerminate = workers.forall {case (_, worker) => worker.state == DONE}
+          if (state != MASTERINIT && checkAllWorkerTerminate) {
+            logger.info(s"[Terminate]: All workers terminated")
+            stop
+          }
         }
-        Future.successful(new TerminateResponse)
       }
+      else {
+        workers.synchronized {
+          workers(request.id).state = DONE
+          if (checkAllWorkerStatus(MERGING, DONE)) {
+            logger.info(s"[Terminate]: All workers done")
+            state = SUCCESS
+            stop
+          }
+        }
+      }
+
+      Future.successful(new TerminateResponse)
     }
   }
 }

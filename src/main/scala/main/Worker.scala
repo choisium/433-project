@@ -47,10 +47,17 @@ object Worker {
       // Do Shuffle
       client.shuffle
 
-      // Send DoneRequest
-      client.requestDone
+      // Send MergeRequest
+      client.requestMerge
+
+      // Do Merge
+      client.merge
+
+      // Send TerminateRequest with SUCCESS
+      client.shutdown(true)
     } finally {
-      client.shutdown
+      // Send TerminateRequest with FAILED
+      client.shutdown(false)
     }
   }
 }

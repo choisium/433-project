@@ -1,17 +1,14 @@
 package network
 
-import scala.concurrent.{ExecutionContext, Promise, Await}
-import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext
 import scala.collection.mutable.Map
 
 import java.util.logging.Logger
 
-import io.grpc.Server
-
 import message.common._
 import message.shuffle._
 import common._
-import network.{FileServer, FileClient}
+
 
 class ShuffleHandler(serverHost: String, serverPort: Int, id: Int) {
   val logger = Logger.getLogger(classOf[ShuffleHandler].getName)

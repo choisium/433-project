@@ -106,7 +106,7 @@ object Sorter {
     val dir = new File(directoryPath)
     if (dir.exists && dir.isDirectory) {
       val fileList = dir.listFiles
-      fileList.filter(file => file.isFile && file.getName.substring(0, stage.length).equals(stage)).toList
+      fileList.filter(file => file.isFile && file.getName.startsWith(stage)).toList
     } else {
       List[File]()
     }

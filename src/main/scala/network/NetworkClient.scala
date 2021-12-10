@@ -23,7 +23,7 @@ import io.grpc.stub.StreamObserver
 import message.common._
 import message.connection._
 import common._
-import sorting.Sampler
+import sorting.{Sampler, Sorter, Merger}
 
 
 class NetworkClient(host: String, port: Int) {
@@ -43,14 +43,18 @@ class NetworkClient(host: String, port: Int) {
   var workerNum: Int = -1
   val workers = Map[Int, WorkerInfo]()
 
-  final def shutdown: Unit = {
-    if (id > 0) {
-      val response = blockingStub.terminate(new TerminateRequest(id))
-    }
+  final def shutdown(success: Boolean): Unit = {
     if (shuffleHandler != null) {
       shuffleHandler.serverStop
     }
-    channel.shutdown.awaitTermination(5, TimeUnit.SECONDS)
+    if (id > 0) {
+      val message = new TerminateRequest(id, if (success) StatusEnum.SUCCESS else StatusEnum.FAILED)
+      val response = blockingStub.terminate(message)
+      id = -1
+      channel.shutdown.awaitTermination(5, TimeUnit.SECONDS)
+    }
+
+    /* Clear temporary files */
   }
 
   final def requestConnect(host: String, port: Int): Unit = {
@@ -139,6 +143,10 @@ class NetworkClient(host: String, port: Int) {
   final def sort(): Unit = {
     logger.info("[sort] start Sort")
     // Do sort
+    /* TODO: Need to get input directory from user command */
+    val inputDirPath = baseDirPath + "/input"
+    val mainRange = for ((workerId, worker) <- workers) yield workerId -> worker.keyRange
+    Sorter.partition(inputDirPath, baseDirPath, mainRange.toMap)
 
     // Start shuffle server
     logger.info("[sort] start ShuffleHandler Server")
@@ -172,23 +180,35 @@ class NetworkClient(host: String, port: Int) {
   }
 
   @tailrec
-  final def requestDone(): Unit = {
-    logger.info("[requestDone] Notify shuffle done")
+  final def requestMerge(): Unit = {
+    logger.info("[requestMerge] Notify shuffle done")
 
-    val response = blockingStub.done(new DoneRequest(id))
+    val response = blockingStub.merge(new MergeRequest(id))
     response.status match {
       case StatusEnum.SUCCESS => {
-        logger.info("[requestDone] Other workers done shuffling too")
+        logger.info("[requestMerge] Other workers done shuffling too")
       }
       case StatusEnum.FAILED => {
-        logger.info("[requestDone] RequestDone failed.")
+        logger.info("[requestMerge] requestMerge failed.")
         throw new WorkerFailedException
       }
       case _ => {
         /* Wait 5 seconds and retry */
         Thread.sleep(5 * 1000)
-        requestDone
+        requestMerge
       }
     }
+  }
+
+  final def merge(): Unit = {
+    // Stop shuffle server
+    logger.info("[sort] stop ShuffleHandler Server")
+    shuffleHandler.serverStop
+
+    logger.info("[merge] start Merge")
+    val outputDirPath = baseDirPath + "/output"
+    Merger.merge(baseDirPath, outputDirPath, workers(id).subKeyRange)
+
+    Sorter.getListOfFiles(outputDirPath).foreach(file => Merger.sortNotTagged(file.getPath))
   }
 }
