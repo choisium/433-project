@@ -86,6 +86,14 @@ class NetworkClient(clientInfo: ClientInfo) {
     logger.info("[sample] done Sample")
   }
 
+  final def getInputFileNum(): Int = {
+    (for (inputDir <- clientInfo.inputDirs) yield {
+      val dir = new File(inputDir)
+      assert(dir.isDirectory)
+      dir.listFiles.length
+    }).sum
+  }
+
   final def requestSample(samplePromise: Promise[Unit]): Unit = {
     logger.info("[requestSample] Try to send sample")
 
@@ -112,8 +120,9 @@ class NetworkClient(clientInfo: ClientInfo) {
       val sampleFiles = FileHandler.getListFilesWithPrefix(tempDir, "sample", "")
       assert(sampleFiles.length == 1)
       val source = Source.fromFile(sampleFiles(0))
+      val inputFileNum = getInputFileNum
       for (line <- source.getLines) {
-        val request = SampleRequest(id = id, data = ByteString.copyFromUtf8(line+"\r\n"))
+        val request = SampleRequest(id = id, data = ByteString.copyFromUtf8(line+"\r\n"), fileNum = inputFileNum)
         requestObserver.onNext(request)
       }
       source.close

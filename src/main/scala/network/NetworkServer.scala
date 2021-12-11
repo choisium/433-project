@@ -91,7 +91,8 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
       logger.info(s"[tryPivot]: All workers sent sample. Start pivot.")
 
       val f = Future {
-        val pivot = new Pivoter(tempDir, requiredWorkerNum, requiredWorkerNum, 1);
+        val totalSubRangeNum = workers.map{case (id, worker) => worker.fileNum}.sum / requiredWorkerNum
+        val pivot = new Pivoter(tempDir, requiredWorkerNum, totalSubRangeNum, 1);
         val ranges = pivot.run
         workers.synchronized{
           for ((id, worker) <- workers) {
@@ -152,9 +153,11 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
         new StreamObserver[SampleRequest] {
           var writer: BufferedOutputStream = null
           var workerId: Int = -1
+          var workerFileNum: Int = 0
 
           override def onNext(request: SampleRequest): Unit = {
             workerId = request.id
+            workerFileNum = request.fileNum
             if (writer == null) {
               val file = FileHandler.createFile(tempDir, s"sample-${request.id}-", "")
               writer = new BufferedOutputStream(new FileOutputStream(file))
@@ -177,6 +180,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
 
             workers.synchronized{
               workers(workerId).state = SAMPLED
+              workers(workerId).fileNum = workerFileNum
             }
 
             tryPivot

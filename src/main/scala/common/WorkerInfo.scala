@@ -26,6 +26,7 @@ class WorkerInfo(val id: Int, val ip: String, val port: Int) {
   var keyRange: Range = null
   var subKeyRange: Seq[Range] = null
   var state: WorkerState = WORKERINIT
+  var fileNum: Int = 0
 }
 
 object WorkerInfo {

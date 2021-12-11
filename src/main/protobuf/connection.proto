@@ -19,6 +19,7 @@ message ConnectResponse {
 message SampleRequest {
   int32 id = 1;
   bytes data = 2;
+  int32 fileNum = 3;
 }
 
 // Master responds whether the worker's sample is received or not
