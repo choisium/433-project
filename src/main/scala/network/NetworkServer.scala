@@ -14,7 +14,7 @@ import scala.util.{Success, Failure}
 
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
-import java.io.{OutputStream, BufferedOutputStream, FileOutputStream, File}
+import java.io.{OutputStream, FileOutputStream, File}
 import java.net._
 
 import io.grpc.{Server, ServerBuilder, Status}
@@ -151,7 +151,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
       } else {
         logger.info("[sample]: Worker tries to send sample")
         new StreamObserver[SampleRequest] {
-          var writer: BufferedOutputStream = null
+          var writer: FileOutputStream = null
           var workerId: Int = -1
           var workerFileNum: Int = 0
 
@@ -160,7 +160,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
             workerFileNum = request.fileNum
             if (writer == null) {
               val file = FileHandler.createFile(tempDir, s"sample-${request.id}-", "")
-              writer = new BufferedOutputStream(new FileOutputStream(file))
+              writer = new FileOutputStream(file)
             }
             request.data.writeTo(writer)
             writer.flush

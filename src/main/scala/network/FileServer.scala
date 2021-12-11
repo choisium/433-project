@@ -7,7 +7,7 @@
 package network
 
 import java.util.logging.Logger
-import java.io.{OutputStream, BufferedOutputStream, FileOutputStream}
+import java.io.{OutputStream, FileOutputStream}
 import java.util.concurrent.TimeUnit
 
 import io.grpc.{Server, ServerBuilder, Status}
@@ -53,7 +53,7 @@ class FileServer(executionContext: ExecutionContext, port: Int, id: Int, tempDir
   class ShuffleImpl() extends ShuffleGrpc.Shuffle {
     override def shuffle(responseObserver: StreamObserver[FileResponse]): StreamObserver[FileRequest] = {
       new StreamObserver[FileRequest] {
-        var writer: BufferedOutputStream = null
+        var writer: FileOutputStream = null
         var senderId: Int = -1
         var partitionId: Int = -1
 
@@ -63,7 +63,7 @@ class FileServer(executionContext: ExecutionContext, port: Int, id: Int, tempDir
           if (writer == null) {
             logger.info(s"[FileServer]: getting from $senderId with partition $partitionId")
             val file = FileHandler.createFile(tempDir, s"shuffle-$senderId-$partitionId-", "-unsorted")
-            writer = new BufferedOutputStream(new FileOutputStream(file))
+            writer = new FileOutputStream(file)
           }
           request.data.writeTo(writer)
           writer.flush

@@ -1,6 +1,6 @@
 package sorting
 
-import java.io.{BufferedReader, File, BufferedOutputStream, FileOutputStream, FileReader}
+import java.io.{BufferedReader, File, FileOutputStream, FileReader}
 import scala.annotation.tailrec
 import scala.collection.immutable.ListMap
 import scala.io.Source
