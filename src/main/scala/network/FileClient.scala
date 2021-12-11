@@ -71,7 +71,7 @@ class FileClient(host: String, port: Int, id: Int, tempDir: String) {
       val source = Source.fromFile(file)
       val partitionId = file.getName.split("-")(2).toInt
       for (line <- source.getLines) {
-        val request = FileRequest(id = id, partitionId = partitionId, data = ByteString.copyFromUtf8(line+"\n"))
+        val request = FileRequest(id = id, partitionId = partitionId, data = ByteString.copyFromUtf8(line+"\r\n"))
         requestObserver.onNext(request)
       }
       source.close

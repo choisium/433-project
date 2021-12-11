@@ -1,6 +1,7 @@
 package sorting
 
-import sorting.Sorter.{getListOfStageFiles, sort, splitSingleInput}
+import sorting.Sorter.{sort, splitSingleInput}
+import common.FileHandler
 
 import java.io.File
 import java.nio.file.{Files, Paths, StandardCopyOption}
@@ -12,7 +13,7 @@ object Merger {
   // merge shuffled files into output-##
   def merge(workerPath: String, outputPath: String, subRanges: Seq[(String, String)]): Any = {
     val workerDir = new File(workerPath)
-    val listOfInputFiles = getListOfStageFiles(workerPath, "shuffle-")
+    val listOfInputFiles = FileHandler.getListOfStageFiles(workerPath, "shuffle-")
     for (file <- listOfInputFiles) {
       splitSingleInput(file.getPath, outputPath + "/output-", "", Iterator.from(0).zip(subRanges).toMap)
     }
@@ -29,7 +30,7 @@ object Merger {
   // on network
   // for test
   def shuffle(workerPath: String): Any = {
-    val listOfPartitionedFiles = getListOfStageFiles(workerPath, "partition")
+    val listOfPartitionedFiles = FileHandler.getListOfStageFiles(workerPath, "partition")
     for (file <- listOfPartitionedFiles) {
       // under 10 workers exists
       val workerId = file.getPath.split("-")(1).toInt

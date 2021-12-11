@@ -210,7 +210,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
       }
       if (checkAllWorkerStatus(PIVOTED, SORTED)) {
         state = SHUFFLING
-        logger.info("[sort] Worker sort done successfully\n")
+        logger.info("[sort] Worker sort done successfully")
       }
 
       state match {

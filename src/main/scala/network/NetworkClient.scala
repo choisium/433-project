@@ -113,7 +113,7 @@ class NetworkClient(clientInfo: ClientInfo) {
       assert(sampleFiles.length == 1)
       val source = Source.fromFile(sampleFiles(0))
       for (line <- source.getLines) {
-        val request = SampleRequest(id = id, data = ByteString.copyFromUtf8(line+"\n"))
+        val request = SampleRequest(id = id, data = ByteString.copyFromUtf8(line+"\r\n"))
         requestObserver.onNext(request)
       }
       source.close
