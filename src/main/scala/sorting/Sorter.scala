@@ -29,8 +29,8 @@ object Sorter {
   // Map[Int, (String, String)] **
   def partition(inputPaths: Seq[String], workerPath: String, pivots: Map[Int, (String, String)]): Any = {
     for {
-      idx <- inputPaths.indices
-      file <- FileHandler.getListOfFiles(inputPaths(idx))
+      inputPath <- inputPaths
+      (file, idx) <- FileHandler.getListOfFiles(inputPath).zipWithIndex
     } {
       splitSingleInput(file.getPath, workerPath + "/partition-", idx +"-unsorted", pivots)
     }

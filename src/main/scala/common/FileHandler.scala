@@ -28,8 +28,6 @@ object FileHandler {
     val tempDir = new File(s"${System.getProperty("java.io.tmpdir")}/${prefix}")
     if (!tempDir.mkdir) throw new IOException("Could not create temporary directory: " + tempDir.getAbsolutePath)
     assert(tempDir.isDirectory)
-    /* TODO: delete println */
-    println(tempDir.getAbsolutePath)
     tempDir.getAbsolutePath
   }
 
@@ -37,8 +35,6 @@ object FileHandler {
     val dir = new File(tempDir)
     assert(dir.isDirectory)
     val tempFile = File.createTempFile(prefix, postfix, dir);
-    /* TODO: delete println */
-    println(tempFile.getAbsolutePath)
     tempFile
   }
 

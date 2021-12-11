@@ -39,6 +39,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
 
   val pivotPromise = Promise[PivotResponse]()
   var tempDir: String = null
+  val keyLength = 5
 
   def start(): Unit = {
     /* Start server */
@@ -80,10 +81,12 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
   }
 
   def checkAllWorkerStatus(masterState: MasterState, workerState: WorkerState): Boolean = {
-    if (state == masterState &&
-        workers.size == requiredWorkerNum &&
-        workers.forall {case (_, worker) => worker.state == workerState}) true
-    else false
+    workers.synchronized {
+      if (state == masterState &&
+          workers.size == requiredWorkerNum &&
+          workers.forall {case (_, worker) => worker.state == workerState}) true
+      else false
+    }
   }
 
   def tryPivot(): Unit = {
@@ -92,7 +95,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
 
       val f = Future {
         val totalSubRangeNum = workers.map{case (id, worker) => worker.fileNum}.sum / requiredWorkerNum
-        val pivot = new Pivoter(tempDir, requiredWorkerNum, totalSubRangeNum, 1);
+        val pivot = new Pivoter(tempDir, requiredWorkerNum, totalSubRangeNum, keyLength);
         val ranges = pivot.run
         workers.synchronized{
           for ((id, worker) <- workers) {

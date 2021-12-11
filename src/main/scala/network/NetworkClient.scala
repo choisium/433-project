@@ -51,6 +51,7 @@ class NetworkClient(clientInfo: ClientInfo) {
   var id: Int = -1
   var workerNum: Int = -1
   val workers = Map[Int, WorkerInfo]()
+  val sampleSize = 10000
 
   final def shutdown(success: Boolean): Unit = {
     logger.info("[NetworkClient] Client shutdown")
@@ -82,7 +83,7 @@ class NetworkClient(clientInfo: ClientInfo) {
   final def sample(): Unit = {
     logger.info("[sample] start Sample")
     val inputDir = clientInfo.inputDirs(0)
-    Sampler.sample(inputDir, tempDir, 100)
+    Sampler.sample(inputDir, tempDir, sampleSize)
     logger.info("[sample] done Sample")
   }
 

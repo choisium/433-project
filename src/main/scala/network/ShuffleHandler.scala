@@ -4,10 +4,11 @@ import scala.concurrent.ExecutionContext
 import scala.collection.mutable.Map
 
 import java.util.logging.Logger
+import java.io.{File, IOException}
 
 import message.common._
 import message.shuffle.{ShuffleGrpc, FileRequest, FileResponse}
-import common.WorkerInfo
+import common.{WorkerInfo, FileHandler}
 
 
 class ShuffleHandler(serverHost: String, serverPort: Int, id: Int, tempDir: String) {
@@ -27,8 +28,20 @@ class ShuffleHandler(serverHost: String, serverPort: Int, id: Int, tempDir: Stri
   }
 
   def shuffle(workers: Map[Int, WorkerInfo]): Unit = {
+    /* Rename partition to worker itself */
+    for (partitionFile <- FileHandler.getListFilesWithPrefix(tempDir, s"partition-$id-", "")) {
+      val shuffleFile = new File(partitionFile.getName.replaceFirst(s"partition-$id-", s"shuffle-$id-"));
+
+      if (shuffleFile.exists())
+        throw new IOException("Shuffle file exists");
+
+      if (!partitionFile.renameTo(shuffleFile))
+        throw new IOException("Partition file is not renamed")
+    }
+
+    /* Send partition to other workers */
     for {
-      workerId <- (id to workers.size) ++ (1 until id)
+      workerId <- ((id + 1) to workers.size) ++ (1 until id)
     } {
       logger.info(s"[ShuffleHandler] Try to send partition from ${id} to ${workerId}")
       var client: FileClient = null

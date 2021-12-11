@@ -31,10 +31,6 @@ object Worker {
 
       // Send PivotRequest
       client.requestPivot
-      /* TODO: delete println */
-      for ((id, w) <- client.workers) {
-        println(id, w.keyRange, w.subKeyRange)
-      }
 
       // Do Sorting
       client.sort
@@ -71,24 +67,25 @@ object Worker {
     val masterPort = masterInfo(1).toInt
 
     require (args(1) == "-I", usage)
-    val inputDirs = args.slice(2, args.length - 2)
-    require(inputDirs.forall(dirPath => new File(dirPath).isDirectory), "Input directories must be directories")
+    var inputDirs: Seq[String] = null
 
     require (args(args.length - 2) == "-O" || args(args.length - 3) == "-O", usage)
     var outputDir: String = null
     var fileServerPort: Int = 9000
     if (args(args.length - 2) == "-O") {
+      inputDirs = args.slice(2, args.length - 2)
       outputDir = args(args.length - 1)
     } else {
+      inputDirs = args.slice(2, args.length - 3)
       outputDir = args(args.length - 2)
       fileServerPort = args.length - 1
     }
 
+    require(inputDirs.forall(dirPath => new File(dirPath).isDirectory), "Input directories must be directories")
     val dir = new File(outputDir)
     if (!dir.exists) {
       dir.mkdir()
     }
-
     require(dir.isDirectory, "Output directory must be a directory")
 
     val fileServerHost = InetAddress.getLocalHost.getHostAddress
