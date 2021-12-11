@@ -29,10 +29,10 @@ object Sorter {
   // Map[Int, (String, String)] **
   def partition(inputPaths: Seq[String], workerPath: String, pivots: Map[Int, (String, String)]): Any = {
     for {
-      inputPath <- inputPaths
-      file <- FileHandler.getListOfFiles(inputPath)
+      idx <- inputPaths.indices
+      file <- FileHandler.getListOfFiles(inputPaths(idx))
     } {
-      splitSingleInput(file.getPath, workerPath + "/partition-", "-1-unsorted", pivots)
+      splitSingleInput(file.getPath, workerPath + "/partition-", idx +"-unsorted", pivots)
     }
   }
 
@@ -46,7 +46,7 @@ object Sorter {
       for {
         (id, range) <- pivots
       } {
-        val writePath = splitTo + id + _pathTail
+        val writePath = splitTo + id + "-" + _pathTail
         val partitionLines = lines.filter(line => {
           val lineKey = line.take(keyLength)
           lineKey >= range._1 && lineKey <= range._2
