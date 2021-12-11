@@ -32,7 +32,7 @@ object Sorter {
       inputPath <- inputPaths
       (file, idx) <- FileHandler.getListOfFiles(inputPath).zipWithIndex
     } {
-      splitSingleInput(file.getPath, workerPath + "/partition-", idx +"-unsorted", pivots)
+      splitSingleInput(file.getPath, workerPath + "/partition-", "-" + idx +"-unsorted", pivots)
     }
   }
 
@@ -46,7 +46,7 @@ object Sorter {
       for {
         (id, range) <- pivots
       } {
-        val writePath = splitTo + id + "-" + _pathTail
+        val writePath = splitTo + id + _pathTail
         val partitionLines = lines.filter(line => {
           val lineKey = line.take(keyLength)
           lineKey >= range._1 && lineKey <= range._2

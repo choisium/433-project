@@ -30,7 +30,7 @@ class ShuffleHandler(serverHost: String, serverPort: Int, id: Int, tempDir: Stri
   def shuffle(workers: Map[Int, WorkerInfo]): Unit = {
     /* Rename partition to worker itself */
     for (partitionFile <- FileHandler.getListFilesWithPrefix(tempDir, s"partition-$id-", "")) {
-      val shuffleFile = new File(partitionFile.getName.replaceFirst(s"partition-$id-", s"shuffle-$id-"));
+      val shuffleFile = new File(partitionFile.getAbsolutePath.replaceFirst(s"partition-$id-", s"shuffle-$id-"));
 
       if (shuffleFile.exists())
         throw new IOException("Shuffle file exists");

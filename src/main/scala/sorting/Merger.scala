@@ -15,7 +15,7 @@ object Merger {
     val workerDir = new File(workerPath)
     val listOfInputFiles = FileHandler.getListOfStageFiles(workerPath, "shuffle-")
     for (file <- listOfInputFiles) {
-      splitSingleInput(file.getPath, outputPath + "/output-", "", Iterator.from(0).zip(subRanges).toMap)
+      splitSingleInput(file.getPath, outputPath + "/output.", "", Iterator.from(0).zip(subRanges).toMap)
     }
   }
 
