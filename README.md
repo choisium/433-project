@@ -44,20 +44,20 @@ Team color: Blue
 - master  
   ![image](https://user-images.githubusercontent.com/35210772/145704439-96d2576f-6745-4a5a-b4aa-1b9596c9765d.png)
 - worker  
-  ![image](https://user-images.githubusercontent.com/35210772/145704456-645b3df7-50a2-419b-ba8c-1ca3d09ced54.png)
-  실행 후 output 파일이 잘 생성되었다.
-  ![image](https://user-images.githubusercontent.com/35210772/145704498-86c89b04-9fac-488e-bb86-761ac6fe20e5.png)
+  ![image](https://user-images.githubusercontent.com/35210772/145704456-645b3df7-50a2-419b-ba8c-1ca3d09ced54.png)  
+  실행 후 output 파일이 잘 생성되었다.  
+  ![image](https://user-images.githubusercontent.com/35210772/145704498-86c89b04-9fac-488e-bb86-761ac6fe20e5.png)  
   All output files are in order and the number or records is same as original.
 ### 1 worker with input300 (9G)
 - worker  
   ![image](https://user-images.githubusercontent.com/35210772/145710941-e2381a1f-18c4-4922-8557-ee5d478c1b2a.png)
-  ![image](https://user-images.githubusercontent.com/35210772/145711308-d5ff859e-3a78-477d-ba0a-23e4a7917961.png)
+  ![image](https://user-images.githubusercontent.com/35210772/145711308-d5ff859e-3a78-477d-ba0a-23e4a7917961.png)  
   All output files are in order and the number or records is same as original. 
 
 ### 3 workers with input 10 (306M * 3)
 - master  
-  ![image](https://user-images.githubusercontent.com/35210772/145705719-f8809a6a-ee15-4bf2-aedf-e8b41bba0590.png)
-  실행 후 worker를 순서대로 출력한다.
+  ![image](https://user-images.githubusercontent.com/35210772/145705719-f8809a6a-ee15-4bf2-aedf-e8b41bba0590.png)  
+  실행 후 worker를 순서대로 출력한다.  
 - worker 1  
   ![image](https://user-images.githubusercontent.com/35210772/145705738-c919b8bd-7fa0-4439-acf6-381be4560e61.png)
   ![image](https://user-images.githubusercontent.com/35210772/145705809-7272082f-6c87-4446-9293-7726e2341a1e.png)
