@@ -7,21 +7,24 @@
 package network
 
 import java.util.logging.Logger
-import java.io.{OutputStream, BufferedOutputStream, FileOutputStream}
+import java.io.{OutputStream, FileOutputStream}
 import java.util.concurrent.TimeUnit
 
 import io.grpc.{Server, ServerBuilder, Status}
 import io.grpc.stub.StreamObserver;
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import message.common.StatusEnum
 import message.shuffle.{ShuffleGrpc, FileRequest, FileResponse}
+import common._
 
 
-class FileServer(executionContext: ExecutionContext, port: Int, id: Int) { self =>
+class FileServer(executionContext: ExecutionContext, port: Int, id: Int, tempDir: String) { self =>
   val logger: Logger = Logger.getLogger(classOf[FileServer].getName)
-  val baseDir = s"${System.getProperty("user.dir")}/src/main/resources/${id}"
+  logger.setLevel(loggerLevel.level)
+
   var server: Server = null
 
   def start(): Unit = {
@@ -29,11 +32,11 @@ class FileServer(executionContext: ExecutionContext, port: Int, id: Int) { self 
         .addService(ShuffleGrpc.bindService(new ShuffleImpl, executionContext))
         .build
         .start
-    logger.info("FileServer started, listening on " + port)
+    logger.info("[FileServer] started, listening on " + port)
     sys.addShutdownHook {
-      System.err.println("*** shutting down gRPC server since JVM is shutting down")
+      logger.info("Shutting down FileServer since JVM is shutting down")
       self.stop()
-      System.err.println("*** server shut down")
+      logger.info("File server shut down")
     }
   }
 
@@ -50,10 +53,9 @@ class FileServer(executionContext: ExecutionContext, port: Int, id: Int) { self 
   }
 
   class ShuffleImpl() extends ShuffleGrpc.Shuffle {
-    override def shuffle(responseObserver: StreamObserver[FileResponse]): StreamObserver[FileRequest] =
+    override def shuffle(responseObserver: StreamObserver[FileResponse]): StreamObserver[FileRequest] = {
       new StreamObserver[FileRequest] {
-        val filepath = baseDir + "/shuffle-"
-        var writer: BufferedOutputStream = null
+        var writer: FileOutputStream = null
         var senderId: Int = -1
         var partitionId: Int = -1
 
@@ -62,7 +64,8 @@ class FileServer(executionContext: ExecutionContext, port: Int, id: Int) { self 
           partitionId = request.partitionId
           if (writer == null) {
             logger.info(s"[FileServer]: getting from $senderId with partition $partitionId")
-            writer = new BufferedOutputStream(new FileOutputStream(filepath + senderId + "-" + partitionId))
+            val file = FileHandler.createFile(tempDir, s"shuffle-$senderId-$partitionId-", "-unsorted")
+            writer = new FileOutputStream(file)
           }
           request.data.writeTo(writer)
           writer.flush
@@ -81,5 +84,6 @@ class FileServer(executionContext: ExecutionContext, port: Int, id: Int) { self 
           responseObserver.onCompleted
         }
       }
+    }
   }
 }

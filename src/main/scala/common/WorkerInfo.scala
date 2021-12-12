@@ -9,13 +9,14 @@ case object MASTERINIT extends MasterState    // Initial state
 case object CONNECTED extends MasterState     // When all workers are connnected
 case object PIVOTED extends MasterState       // When pivoting done
 case object SHUFFLING extends MasterState        // When all workers are sorted(in a worker)
-case object TERMINATE extends MasterState     // When all workers are terminated
+case object MERGING extends MasterState        // When all workers are sorted(in a worker)
+case object SUCCESS extends MasterState     // When all workers are terminated
 case object FAILED extends MasterState        // Failed state
 
 sealed trait WorkerState
 case object WORKERINIT extends WorkerState    // Initial state
 case object SAMPLED extends WorkerState       // When sample done
-case object SORTED extends WorkerState   // When sort and partition done
+case object SORTED extends WorkerState        // When sort and partition done
 case object SHUFFLED extends WorkerState      // When all partitioned files are sent
 case object DONE extends WorkerState          // When merge done
 
@@ -25,6 +26,7 @@ class WorkerInfo(val id: Int, val ip: String, val port: Int) {
   var keyRange: Range = null
   var subKeyRange: Seq[Range] = null
   var state: WorkerState = WORKERINIT
+  var fileNum: Int = 0
 }
 
 object WorkerInfo {

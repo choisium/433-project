@@ -1,15 +1,15 @@
 package sorting
 
 import org.scalatest.funsuite.AnyFunSuite
+import sorting.TestHelper.isContentsOfSampleAndTestFileEqual
 
 import java.io.File
-import scala.io.Source
 
 class SamplingTest extends AnyFunSuite {
   test("Sample file creation from worker's input") {
 
-    val sampleSize = 30;
-    val projectPath: String = System.getProperty("user.dir");
+    val sampleSize = 30
+    val projectPath: String = System.getProperty("user.dir")
     val inputPath: String = projectPath + "/src/test/resources/worker/input"
     val workerPath: String = projectPath + "/src/test/resources/worker"
     val sampledFile = new File(workerPath + "/sample")
@@ -23,26 +23,6 @@ class SamplingTest extends AnyFunSuite {
       assert(isContentsEqual)
     } catch {
       case ex: Exception => assert(false)
-    }
-  }
-
-  def isContentsOfSampleAndTestFileEqual(samplePath: String, testFilePath: String, sampleSize: Int): Boolean = {
-    try {
-      val bufferedSample = Source.fromFile(samplePath)
-      val bufferedTestFile = Source.fromFile(testFilePath)
-
-      val linesOfSample = bufferedSample.getLines.take(sampleSize);
-      val linesOfTestFile = bufferedTestFile.getLines.take(sampleSize);
-      val isEqual = linesOfSample.sameElements(linesOfTestFile) && linesOfSample.size.equals(linesOfTestFile.size)
-
-      bufferedSample.close
-      bufferedTestFile.close
-
-      isEqual
-
-    } catch {
-      case ex: Exception => println(ex)
-        false
     }
   }
 }

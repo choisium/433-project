@@ -23,50 +23,78 @@ import io.grpc.stub.StreamObserver
 import message.common._
 import message.connection._
 import common._
-import sorting.Sampler
+import sorting.{Sampler, Sorter, Merger}
 
 
-class NetworkClient(host: String, port: Int) {
+class ClientInfo(
+  val masterHost: String,
+  val masterPort: Int,
+  val inputDirs: Seq[String],
+  val outputDir: String,
+  val fileServerHost: String,
+  val fileServerPort: Int
+) {}
+
+
+class NetworkClient(clientInfo: ClientInfo) {
   val logger: Logger = Logger.getLogger(classOf[NetworkClient].getName)
+  logger.setLevel(loggerLevel.level)
 
-  val channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext.build
+  val channel = ManagedChannelBuilder
+                  .forAddress(clientInfo.masterHost, clientInfo.masterPort)
+                  .usePlaintext
+                  .build
   val blockingStub = ConnectionGrpc.blockingStub(channel)
   val asyncStub = ConnectionGrpc.stub(channel)
 
   var shuffleHandler: ShuffleHandler = null;
+  var tempDir: String = null;
 
   var id: Int = -1
-  lazy val baseDirPath = {
-    assert (id > 0)
-    System.getProperty("user.dir") + "/src/main/resources/" + id
-  }
   var workerNum: Int = -1
   val workers = Map[Int, WorkerInfo]()
+  val sampleSize = 10000
 
-  final def shutdown: Unit = {
-    if (id > 0) {
-      val response = blockingStub.terminate(new TerminateRequest(id))
-    }
+  final def shutdown(success: Boolean): Unit = {
+    logger.info("[NetworkClient] Client shutdown")
     if (shuffleHandler != null) {
       shuffleHandler.serverStop
     }
-    channel.shutdown.awaitTermination(5, TimeUnit.SECONDS)
+    if (tempDir != null) {
+      FileHandler.deleteDir(tempDir)
+    }
+
+    if (id > 0) {
+      val message = new TerminateRequest(id, if (success) StatusEnum.SUCCESS else StatusEnum.FAILED)
+      val response = blockingStub.terminate(message)
+      id = -1
+      channel.shutdown.awaitTermination(5, TimeUnit.SECONDS)
+    }
+
+    /* Clear temporary files */
   }
 
-  final def requestConnect(host: String, port: Int): Unit = {
+  final def requestConnect(): Unit = {
     logger.info("[requestConnect] try to connect to master")
-    val response = blockingStub.connect(new ConnectRequest(host, port))
+    val response = blockingStub.connect(new ConnectRequest(clientInfo.fileServerHost, clientInfo.fileServerPort))
     id = response.id
-    shuffleHandler = new ShuffleHandler(host, port, id)
+    tempDir = FileHandler.createDir(s"blue-worker${id}")
+    shuffleHandler = new ShuffleHandler(clientInfo.fileServerHost, clientInfo.fileServerPort, id, tempDir)
   }
 
   final def sample(): Unit = {
     logger.info("[sample] start Sample")
-    /* TODO: Need to get input directory from user command */
-    val inputDirPath = baseDirPath + "/input"
+    val inputDir = clientInfo.inputDirs(0)
+    Sampler.sample(inputDir, tempDir, sampleSize)
+    logger.info("[sample] done Sample")
+  }
 
-    Sampler.sample(inputDirPath, baseDirPath, 100)
-    assert (new File(baseDirPath + "/sample").isFile)
+  final def getInputFileNum(): Int = {
+    (for (inputDir <- clientInfo.inputDirs) yield {
+      val dir = new File(inputDir)
+      assert(dir.isDirectory)
+      dir.listFiles.length
+    }).sum
   }
 
   final def requestSample(samplePromise: Promise[Unit]): Unit = {
@@ -92,10 +120,12 @@ class NetworkClient(host: String, port: Int) {
     val requestObserver = asyncStub.sample(responseObserver)
 
     try {
-      val samplePath = baseDirPath + "/sample"
-      val source = Source.fromFile(samplePath)
+      val sampleFiles = FileHandler.getListFilesWithPrefix(tempDir, "sample", "")
+      assert(sampleFiles.length == 1)
+      val source = Source.fromFile(sampleFiles(0))
+      val inputFileNum = getInputFileNum
       for (line <- source.getLines) {
-        val request = SampleRequest(id = id, data = ByteString.copyFromUtf8(line+"\n"))
+        val request = SampleRequest(id = id, data = ByteString.copyFromUtf8(line+"\r\n"), fileNum = inputFileNum)
         requestObserver.onNext(request)
       }
       source.close
@@ -137,8 +167,11 @@ class NetworkClient(host: String, port: Int) {
   }
 
   final def sort(): Unit = {
-    logger.info("[sort] start Sort")
     // Do sort
+    logger.info("[sort] start Sort")
+    val mainRange = for ((workerId, worker) <- workers) yield workerId -> worker.keyRange
+    Sorter.partition(clientInfo.inputDirs, tempDir, mainRange.toMap)
+    logger.info("[sort] done Sort")
 
     // Start shuffle server
     logger.info("[sort] start ShuffleHandler Server")
@@ -169,26 +202,38 @@ class NetworkClient(host: String, port: Int) {
   final def shuffle(): Unit = {
     logger.info("[shuffle] start Shuffle")
     shuffleHandler.shuffle(workers)
+    logger.info("[shuffle] done Shuffle")
   }
 
   @tailrec
-  final def requestDone(): Unit = {
-    logger.info("[requestDone] Notify shuffle done")
+  final def requestMerge(): Unit = {
+    logger.info("[requestMerge] Notify shuffle done")
 
-    val response = blockingStub.done(new DoneRequest(id))
+    val response = blockingStub.merge(new MergeRequest(id))
     response.status match {
       case StatusEnum.SUCCESS => {
-        logger.info("[requestDone] Other workers done shuffling too")
+        logger.info("[requestMerge] Other workers done shuffling too")
       }
       case StatusEnum.FAILED => {
-        logger.info("[requestDone] RequestDone failed.")
+        logger.info("[requestMerge] requestMerge failed.")
         throw new WorkerFailedException
       }
       case _ => {
         /* Wait 5 seconds and retry */
         Thread.sleep(5 * 1000)
-        requestDone
+        requestMerge
       }
     }
+  }
+
+  final def merge(): Unit = {
+    // Stop shuffle server
+    logger.info("[sort] stop ShuffleHandler Server")
+    shuffleHandler.serverStop
+
+    logger.info("[merge] start Merge")
+    Merger.merge(tempDir, clientInfo.outputDir, workers(id).subKeyRange)
+    FileHandler.getListOfFiles(clientInfo.outputDir).foreach(file => Merger.sortNotTagged(file.getPath))
+    logger.info("[merge] done Merge")
   }
 }

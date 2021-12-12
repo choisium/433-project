@@ -4,6 +4,10 @@ import scala.io.Source
 import scala.collection.immutable.SortedMap
 import scala.annotation.tailrec
 
+import java.io.File
+
+import common.FileHandler
+
 
 /*  This class computes pivots from the file in filepath.
     - filepath: The absolute path of file used to compute pivots.
@@ -13,7 +17,7 @@ import scala.annotation.tailrec
     - subRangeNum: Expected subrange count per one range.
                 e.g. For a range ("A", "F"), subrange can be (("A", "C"), ("D", "F"))
     - keyLength: The prefix length of key used to create KeyMap. */
-class Pivoter(filepath: String, rangeNum: Int, subRangeNum: Int, keyLength: Int) {
+class Pivoter(sampleDirPath: String, rangeNum: Int, subRangeNum: Int, keyLength: Int) {
     require(rangeNum > 0)
     require(keyLength > 0)
 
@@ -22,12 +26,10 @@ class Pivoter(filepath: String, rangeNum: Int, subRangeNum: Int, keyLength: Int)
     val printableChars = (' ' to '~').toSeq
 
     def getKeyMap(): Map[String, Int] = {
-        val sources = for {
-            filename <- (1 to rangeNum).map(r => filepath+r)
-        } yield Source.fromFile(filename)
+        val sampleFiles = FileHandler.getListOfStageFiles(sampleDirPath, "sample-")
+        val sources = sampleFiles.map(file => Source.fromFile(file))
 
         val keys = for {
-            filename <- (1 to rangeNum).map(r => filepath+r)
             source <- sources
             line <- source.getLines
             if (!line.isEmpty)

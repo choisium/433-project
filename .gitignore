@@ -99,3 +99,4 @@ project/plugins/project/
 !.vscode/*.code-snippets
 
 # End of https://www.toptal.com/developers/gitignore/api/java,scala,sbt,metals,macos,visualstudiocode
+/.idea/

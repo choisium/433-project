@@ -14,7 +14,8 @@ import scala.util.{Success, Failure}
 
 import java.util.concurrent.TimeUnit
 import java.util.logging.Logger
-import java.io.{OutputStream, BufferedOutputStream, FileOutputStream, File}
+import java.io.{OutputStream, FileOutputStream, File}
+import java.net._
 
 import io.grpc.{Server, ServerBuilder, Status}
 import io.grpc.stub.StreamObserver;
@@ -29,6 +30,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
   require(requiredWorkerNum > 0, "requiredWorkerNum should be positive")
 
   val logger = Logger.getLogger(classOf[NetworkServer].getName)
+  logger.setLevel(loggerLevel.level)
 
   var server: Server = null
   val workers = Map[Int, WorkerInfo]()
@@ -37,43 +39,36 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
   val baseDirPath = System.getProperty("user.dir") + "/src/main/resources/master"
 
   val pivotPromise = Promise[PivotResponse]()
-
-  def createBaseDir(): Unit = {
-    val baseDir = new File(baseDirPath)
-    if (!baseDir.exists) {
-      baseDir.mkdir  // need to handle exception
-    }
-    assert(baseDir.exists, "after create base directory")
-  }
-
-  def deleteFilesInBaseDir(): Unit = {
-    val baseDir = new File(baseDirPath)
-    for (file <- baseDir.listFiles) {
-      file.delete
-    }
-    assert(baseDir.exists && baseDir.listFiles.length == 0)
-  }
+  var tempDir: String = null
+  val keyLength = 5
 
   def start(): Unit = {
-    createBaseDir
+    /* Start server */
     server = ServerBuilder.forPort(port)
       .addService(ConnectionGrpc.bindService(new ConnectionImpl, executionContext))
       .build
       .start
     logger.info("Server started, listening on " + port)
+    println(s"${InetAddress.getLocalHost.getHostAddress}:${port}")
     sys.addShutdownHook {
-      System.err.println("*** shutting down gRPC server since JVM is shutting down")
+      logger.info("Shutting down gRPC server since JVM is shutting down")
       self.stop()
-      System.err.println("*** server shut down")
+      logger.info("Server shut down")
     }
 
+    /* Create temporary directory */
+    if (tempDir == null) {
+      tempDir = FileHandler.createDir("blue-master")
+    }
   }
 
   def stop(): Unit = {
     if (server != null) {
       server.shutdown.awaitTermination(5, TimeUnit.SECONDS)
     }
-    deleteFilesInBaseDir
+    if (tempDir != null) {
+      FileHandler.deleteDir(tempDir)
+    }
   }
 
   def blockUntilShutdown(): Unit = {
@@ -87,20 +82,21 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
   }
 
   def checkAllWorkerStatus(masterState: MasterState, workerState: WorkerState): Boolean = {
-    if (state == masterState &&
-        workers.size == requiredWorkerNum &&
-        workers.forall {case (_, worker) => worker.state == workerState}) true
-    else false
+    workers.synchronized {
+      if (state == masterState &&
+          workers.size == requiredWorkerNum &&
+          workers.forall {case (_, worker) => worker.state == workerState}) true
+      else false
+    }
   }
 
   def tryPivot(): Unit = {
     if (checkAllWorkerStatus(CONNECTED, SAMPLED)) {
       logger.info(s"[tryPivot]: All workers sent sample. Start pivot.")
 
-      val filepath = baseDirPath + "/sample"
-
       val f = Future {
-        val pivot = new Pivoter(filepath, requiredWorkerNum, requiredWorkerNum, 1);
+        val totalSubRangeNum = workers.map{case (id, worker) => worker.fileNum}.sum / requiredWorkerNum
+        val pivot = new Pivoter(tempDir, requiredWorkerNum, totalSubRangeNum, keyLength);
         val ranges = pivot.run
         workers.synchronized{
           for ((id, worker) <- workers) {
@@ -114,7 +110,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
       f.onComplete {
         case Success(_) => {
           state = PIVOTED
-          logger.info("[tryPivot] Pivot done successfully\n")
+          logger.info("[tryPivot] Pivot done successfully")
         }
         case Failure(t) => {
           state = FAILED
@@ -159,14 +155,16 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
       } else {
         logger.info("[sample]: Worker tries to send sample")
         new StreamObserver[SampleRequest] {
-          val filepath = baseDirPath + "/sample"
-          var writer: BufferedOutputStream = null
+          var writer: FileOutputStream = null
           var workerId: Int = -1
+          var workerFileNum: Int = 0
 
           override def onNext(request: SampleRequest): Unit = {
             workerId = request.id
+            workerFileNum = request.fileNum
             if (writer == null) {
-              writer = new BufferedOutputStream(new FileOutputStream(filepath + request.id))
+              val file = FileHandler.createFile(tempDir, s"sample-${request.id}-", "")
+              writer = new FileOutputStream(file)
             }
             request.data.writeTo(writer)
             writer.flush
@@ -186,6 +184,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
 
             workers.synchronized{
               workers(workerId).state = SAMPLED
+              workers(workerId).fileNum = workerFileNum
             }
 
             tryPivot
@@ -219,7 +218,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
       }
       if (checkAllWorkerStatus(PIVOTED, SORTED)) {
         state = SHUFFLING
-        logger.info("[sort] Worker sort done successfully\n")
+        logger.info("[sort] Worker sort done successfully")
       }
 
       state match {
@@ -235,7 +234,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
       }
     }
 
-    override def done(request: DoneRequest): Future[DoneResponse] = {
+    override def merge(request: MergeRequest): Future[MergeResponse] = {
       assert (workers(request.id).state == SORTED || workers(request.id).state == SHUFFLED)
       if (workers(request.id).state == SORTED) {
         workers.synchronized{
@@ -243,19 +242,19 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
         }
       }
       if (checkAllWorkerStatus(SHUFFLING, SHUFFLED)) {
-        state = TERMINATE
-        logger.info("[sort] Worker sort done successfully\n")
+        state = MERGING
+        logger.info("[sort] Worker sort done successfully")
       }
 
       state match {
-        case TERMINATE => {
-          Future.successful(new DoneResponse(StatusEnum.SUCCESS))
+        case MERGING => {
+          Future.successful(new MergeResponse(StatusEnum.SUCCESS))
         }
         case FAILED => {
           Future.failed(new InvalidStateException)
         }
         case _ => {
-          Future.successful(new DoneResponse(StatusEnum.IN_PROGRESS))
+          Future.successful(new MergeResponse(StatusEnum.IN_PROGRESS))
         }
       }
     }
@@ -263,15 +262,32 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
     override def terminate(request: TerminateRequest): Future[TerminateResponse] = {
       logger.info(s"[Terminate]: Worker ${request.id} tries to terminate")
 
-      workers.synchronized {
-        val worker = workers.remove(request.id)
-        if (state != MASTERINIT && workers.size == 0) {
-          logger.info(s"[Terminate]: All workers terminated")
-          state = TERMINATE
-          stop
+      if (state == FAILED || request.status != StatusEnum.SUCCESS) {
+        state = FAILED
+        workers.synchronized {
+          val worker = workers.remove(request.id)
+          val checkAllWorkerTerminate = workers.forall {case (_, worker) => worker.state == DONE}
+          if (state != MASTERINIT && checkAllWorkerTerminate) {
+            logger.info(s"[Terminate]: All workers terminated")
+            stop
+          }
         }
-        Future.successful(new TerminateResponse)
       }
+      else {
+        workers.synchronized {
+          workers(request.id).state = DONE
+          if (checkAllWorkerStatus(MERGING, DONE)) {
+            logger.info(s"[Terminate]: All workers done")
+            /* Print workers in order */
+            val workerList = workers.map{case (workerId, worker) => worker.ip}.mkString(" ")
+            println(workerList)
+            state = SUCCESS
+            stop
+          }
+        }
+      }
+
+      Future.successful(new TerminateResponse)
     }
   }
 }

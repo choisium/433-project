@@ -23,8 +23,10 @@ import message.common.StatusEnum
 import message.shuffle.{ShuffleGrpc, FileRequest, FileResponse}
 import common._
 
-class FileClient(host: String, port: Int, id: Int) {
+
+class FileClient(host: String, port: Int, id: Int, tempDir: String) {
   val logger: Logger = Logger.getLogger(classOf[FileClient].getName)
+  logger.setLevel(loggerLevel.level)
 
   val channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext.build
   val blockingStub = ShuffleGrpc.blockingStub(channel)
@@ -34,18 +36,9 @@ class FileClient(host: String, port: Int, id: Int) {
     channel.shutdown().awaitTermination(5, TimeUnit.SECONDS)
   }
 
-  def getListOfPartitionFiles(baseDir: String, receiverId: Int): List[File] = {
-    val dir = new File(baseDir)
-    if (dir.exists && dir.isDirectory) {
-      dir.listFiles.filter(file => file.isFile && file.getName.startsWith(s"partition-$receiverId")).toList
-    } else {
-      List[File]()
-    }
-  }
-
-  def shuffle(baseDir: String, receiverId: Int): Unit = {
+  def shuffle(receiverId: Int): Unit = {
     for {
-      file <- getListOfPartitionFiles(baseDir, receiverId)
+      file <- FileHandler.getListOfStageFiles(tempDir, s"partition-$receiverId-")
     } {
       val shufflePromise = Promise[Unit]()
       requestShuffle(file, shufflePromise)
@@ -77,9 +70,9 @@ class FileClient(host: String, port: Int, id: Int) {
 
     try {
       val source = Source.fromFile(file)
-      val partitionId = file.getName.split("-").last.toInt
+      val partitionId = file.getName.split("-")(2).toInt
       for (line <- source.getLines) {
-        val request = FileRequest(id = id, partitionId = partitionId, data = ByteString.copyFromUtf8(line+"\n"))
+        val request = FileRequest(id = id, partitionId = partitionId, data = ByteString.copyFromUtf8(line+"\r\n"))
         requestObserver.onNext(request)
       }
       source.close

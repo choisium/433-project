@@ -1,4 +1,4 @@
-package io.grpc.examples.helloworld;
+package sorting
 
 import scala.concurrent.ExecutionContext
 import org.scalatest.funsuite.AnyFunSuite
