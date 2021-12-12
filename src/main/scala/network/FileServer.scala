@@ -23,6 +23,8 @@ import common._
 
 class FileServer(executionContext: ExecutionContext, port: Int, id: Int, tempDir: String) { self =>
   val logger: Logger = Logger.getLogger(classOf[FileServer].getName)
+  logger.setLevel(loggerLevel.level)
+
   var server: Server = null
 
   def start(): Unit = {

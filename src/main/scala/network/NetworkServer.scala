@@ -30,6 +30,7 @@ class NetworkServer(executionContext: ExecutionContext, port: Int, requiredWorke
   require(requiredWorkerNum > 0, "requiredWorkerNum should be positive")
 
   val logger = Logger.getLogger(classOf[NetworkServer].getName)
+  logger.setLevel(loggerLevel.level)
 
   var server: Server = null
   val workers = Map[Int, WorkerInfo]()

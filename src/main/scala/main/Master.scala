@@ -16,7 +16,7 @@ object Master {
       }
     }
 
-    val server = new NetworkServer(ExecutionContext.global, port, args(0).toInt)
+    val server = new NetworkServer(ExecutionContext.global, port, requiredWorkerNum)
 
     try {
       server.start

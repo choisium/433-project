@@ -26,6 +26,7 @@ import common._
 
 class FileClient(host: String, port: Int, id: Int, tempDir: String) {
   val logger: Logger = Logger.getLogger(classOf[FileClient].getName)
+  logger.setLevel(loggerLevel.level)
 
   val channel = ManagedChannelBuilder.forAddress(host, port).usePlaintext.build
   val blockingStub = ShuffleGrpc.blockingStub(channel)

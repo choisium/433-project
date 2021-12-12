@@ -8,11 +8,13 @@ import java.io.{File, IOException}
 
 import message.common._
 import message.shuffle.{ShuffleGrpc, FileRequest, FileResponse}
-import common.{WorkerInfo, FileHandler}
+import common.{WorkerInfo, FileHandler, loggerLevel}
 
 
 class ShuffleHandler(serverHost: String, serverPort: Int, id: Int, tempDir: String) {
   val logger = Logger.getLogger(classOf[ShuffleHandler].getName)
+  logger.setLevel(loggerLevel.level)
+
   var server: FileServer = null
 
   def serverStart(): Unit = {

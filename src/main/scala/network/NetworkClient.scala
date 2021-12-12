@@ -38,6 +38,8 @@ class ClientInfo(
 
 class NetworkClient(clientInfo: ClientInfo) {
   val logger: Logger = Logger.getLogger(classOf[NetworkClient].getName)
+  logger.setLevel(loggerLevel.level)
+
   val channel = ManagedChannelBuilder
                   .forAddress(clientInfo.masterHost, clientInfo.masterPort)
                   .usePlaintext

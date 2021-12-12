@@ -14,7 +14,7 @@ lazy val master = (project in file(".")).
       case PathList("META-INF", "MANIFEST.MF") => MergeStrategy.discard
       case PathList("META-INF", "io.netty.versions.properties") => MergeStrategy.first
       case x => MergeStrategy.first
-    } 
+    }
   )
 
 // lazy val worker = (project in file(".")).
