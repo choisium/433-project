@@ -86,7 +86,7 @@ Team color: Blue
 - Result summary  
   - All output files in a worker are in order.  
   - Also the order between workers are in order.   
-  - The number of records in total is same as original records(306M * 3).
+  - The number of records in total is same as original records(9G * 3).
   - 2/3 of records are duplicated, since the input files in a worker is same as others'.
 
 ## Plan
